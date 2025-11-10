@@ -3,11 +3,9 @@ Flask web app for manual music labeling.
 Usage: python src/phase1/label_app.py
 """
 
-import os
-import sys
 import json
+import sys
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_from_directory
 
 # Get project root directory (two levels up from this file)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -15,6 +13,9 @@ TEMPLATE_DIR = PROJECT_ROOT / "templates"
 
 # Add project root to path so we can import config
 sys.path.insert(0, str(PROJECT_ROOT))
+
+from flask import Flask, jsonify, render_template, request, send_from_directory
+
 from config.config import ENERGY_LABELS, VIBE_LABELS
 
 app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
@@ -93,9 +94,7 @@ def serve_audio(track_index):
     if "wav_path" in track:
         wav_path = Path(track["wav_path"])
         if wav_path.exists():
-            return send_from_directory(
-                wav_path.parent, wav_path.name, mimetype="audio/wav"
-            )
+            return send_from_directory(wav_path.parent, wav_path.name, mimetype="audio/wav")
 
     # Fall back to original AIFF
     track_path = Path(track["path"])
@@ -162,7 +161,7 @@ if __name__ == "__main__":
         print("\nNo tracks found! Run: python generate_sample_list.py")
 
     print(f"Already labeled: {len(load_labels())}")
-    print(f"\nStarting server at http://localhost:5001")
+    print("\nStarting server at http://localhost:5001")
     print(f"{'=' * 60}\n")
 
     app.run(debug=True, port=5001)

@@ -3,14 +3,15 @@ Batch inference system for classifying music tracks.
 Processes large music libraries and outputs predictions with confidence scores.
 """
 
-import os
-import json
 import glob
+import json
+import os
+import sys
+
+import joblib
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import joblib
-import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from config.config import MODELS_DIR, PREDICTIONS_DIR
@@ -33,13 +34,15 @@ class MusicClassifier:
         print("Loading models...")
 
         # Load models
-        energy_model_path = os.path.join(MODELS_DIR, 'energy_model.pkl')
-        vibe_model_path = os.path.join(MODELS_DIR, 'vibe_model.pkl')
-        scaler_path = os.path.join(MODELS_DIR, 'scaler.pkl')
-        mlb_path = os.path.join(MODELS_DIR, 'mlb.pkl')
-        metadata_path = os.path.join(MODELS_DIR, 'metadata.json')
+        energy_model_path = os.path.join(MODELS_DIR, "energy_model.pkl")
+        vibe_model_path = os.path.join(MODELS_DIR, "vibe_model.pkl")
+        scaler_path = os.path.join(MODELS_DIR, "scaler.pkl")
+        mlb_path = os.path.join(MODELS_DIR, "mlb.pkl")
+        metadata_path = os.path.join(MODELS_DIR, "metadata.json")
 
-        if not all(os.path.exists(p) for p in [energy_model_path, vibe_model_path, scaler_path, mlb_path]):
+        if not all(
+            os.path.exists(p) for p in [energy_model_path, vibe_model_path, scaler_path, mlb_path]
+        ):
             raise FileNotFoundError("Model files not found. Please train models first.")
 
         self.energy_model = joblib.load(energy_model_path)
@@ -48,9 +51,9 @@ class MusicClassifier:
         self.mlb = joblib.load(mlb_path)
 
         # Load metadata
-        with open(metadata_path, 'r') as f:
+        with open(metadata_path, "r") as f:
             metadata = json.load(f)
-            self.feature_names = metadata['feature_names']
+            self.feature_names = metadata["feature_names"]
 
         print("Models loaded successfully")
 
@@ -81,72 +84,62 @@ class MusicClassifier:
         energy_pred = self.energy_model.predict(feature_vector_scaled)[0]
 
         # Get energy confidence (probability)
-        if hasattr(self.energy_model, 'predict_proba'):
+        if hasattr(self.energy_model, "predict_proba"):
             energy_proba = self.energy_model.predict_proba(feature_vector_scaled)[0]
             energy_confidence = float(np.max(energy_proba))
 
             # Get top 3 energy predictions
             energy_proba_sorted = np.argsort(energy_proba)[::-1][:3]
             energy_top3 = [
-                {
-                    'label': self.energy_model.classes_[idx],
-                    'confidence': float(energy_proba[idx])
-                }
+                {"label": self.energy_model.classes_[idx], "confidence": float(energy_proba[idx])}
                 for idx in energy_proba_sorted
             ]
         else:
             energy_confidence = 0.5
-            energy_top3 = [{'label': energy_pred, 'confidence': 0.5}]
+            energy_top3 = [{"label": energy_pred, "confidence": 0.5}]
 
         # Predict vibes
         vibe_pred_bin = self.vibe_model.predict(feature_vector_scaled)[0]
 
         # Get vibe probabilities if available
         vibe_predictions = []
-        if hasattr(self.vibe_model, 'predict_proba'):
+        if hasattr(self.vibe_model, "predict_proba"):
             # For MultiOutputClassifier, get probabilities for each vibe
             for i, vibe in enumerate(self.mlb.classes_):
                 # Try to get probability from individual estimator
                 try:
                     estimator = self.vibe_model.estimators_[i]
-                    if hasattr(estimator, 'predict_proba'):
+                    if hasattr(estimator, "predict_proba"):
                         prob = estimator.predict_proba(feature_vector_scaled)[0][1]
                     else:
                         prob = 0.5
-                except:
+                except Exception:
                     prob = 0.5
 
-                vibe_predictions.append({
-                    'label': vibe,
-                    'predicted': bool(vibe_pred_bin[i]),
-                    'confidence': float(prob)
-                })
+                vibe_predictions.append(
+                    {"label": vibe, "predicted": bool(vibe_pred_bin[i]), "confidence": float(prob)}
+                )
         else:
             for i, vibe in enumerate(self.mlb.classes_):
-                vibe_predictions.append({
-                    'label': vibe,
-                    'predicted': bool(vibe_pred_bin[i]),
-                    'confidence': 0.5
-                })
+                vibe_predictions.append(
+                    {"label": vibe, "predicted": bool(vibe_pred_bin[i]), "confidence": 0.5}
+                )
 
         # Get predicted vibes (those with prediction = True)
-        predicted_vibes = [v['label'] for v in vibe_predictions if v['predicted']]
+        predicted_vibes = [v["label"] for v in vibe_predictions if v["predicted"]]
 
         result = {
-            'energy': {
-                'predicted': energy_pred,
-                'confidence': energy_confidence,
-                'top_3': energy_top3
+            "energy": {
+                "predicted": energy_pred,
+                "confidence": energy_confidence,
+                "top_3": energy_top3,
             },
-            'vibes': {
-                'predicted': predicted_vibes,
-                'all_vibes': vibe_predictions
-            }
+            "vibes": {"predicted": predicted_vibes, "all_vibes": vibe_predictions},
         }
 
         return result
 
-    def predict_batch(self, audio_paths, output_format='json'):
+    def predict_batch(self, audio_paths, output_format="json"):
         """
         Predict labels for multiple tracks.
 
@@ -164,21 +157,23 @@ class MusicClassifier:
                 result = self.predict_track(audio_path)
 
                 if result:
-                    predictions.append({
-                        'path': audio_path,
-                        'filename': os.path.basename(audio_path),
-                        'energy': result['energy']['predicted'],
-                        'energy_confidence': result['energy']['confidence'],
-                        'vibes': result['vibes']['predicted'],
-                        'energy_top3': result['energy']['top_3'],
-                        'vibe_details': result['vibes']['all_vibes']
-                    })
+                    predictions.append(
+                        {
+                            "path": audio_path,
+                            "filename": os.path.basename(audio_path),
+                            "energy": result["energy"]["predicted"],
+                            "energy_confidence": result["energy"]["confidence"],
+                            "vibes": result["vibes"]["predicted"],
+                            "energy_top3": result["energy"]["top_3"],
+                            "vibe_details": result["vibes"]["all_vibes"],
+                        }
+                    )
             except Exception as e:
                 print(f"Error processing {audio_path}: {e}")
 
         return predictions
 
-    def save_predictions(self, predictions, output_name='predictions'):
+    def save_predictions(self, predictions, output_name="predictions"):
         """
         Save predictions to JSON and CSV formats.
 
@@ -189,8 +184,8 @@ class MusicClassifier:
         os.makedirs(PREDICTIONS_DIR, exist_ok=True)
 
         # Save as JSON
-        json_path = os.path.join(PREDICTIONS_DIR, f'{output_name}.json')
-        with open(json_path, 'w') as f:
+        json_path = os.path.join(PREDICTIONS_DIR, f"{output_name}.json")
+        with open(json_path, "w") as f:
             json.dump(predictions, f, indent=2)
 
         print(f"Saved predictions to {json_path}")
@@ -198,23 +193,25 @@ class MusicClassifier:
         # Save as CSV for easy review
         csv_data = []
         for pred in predictions:
-            csv_data.append({
-                'filename': pred['filename'],
-                'path': pred['path'],
-                'energy': pred['energy'],
-                'energy_confidence': f"{pred['energy_confidence']:.3f}",
-                'vibes': ', '.join(pred['vibes']),
-                'num_vibes': len(pred['vibes'])
-            })
+            csv_data.append(
+                {
+                    "filename": pred["filename"],
+                    "path": pred["path"],
+                    "energy": pred["energy"],
+                    "energy_confidence": f"{pred['energy_confidence']:.3f}",
+                    "vibes": ", ".join(pred["vibes"]),
+                    "num_vibes": len(pred["vibes"]),
+                }
+            )
 
         df = pd.DataFrame(csv_data)
-        csv_path = os.path.join(PREDICTIONS_DIR, f'{output_name}.csv')
+        csv_path = os.path.join(PREDICTIONS_DIR, f"{output_name}.csv")
         df.to_csv(csv_path, index=False)
 
         print(f"Saved CSV to {csv_path}")
 
 
-def process_music_library(music_dir, file_extensions=['*.mp3', '*.wav', '*.flac', '*.m4a']):
+def process_music_library(music_dir, file_extensions=["*.mp3", "*.wav", "*.flac", "*.m4a"]):
     """
     Process all music files in a directory.
 
@@ -225,7 +222,7 @@ def process_music_library(music_dir, file_extensions=['*.mp3', '*.wav', '*.flac'
     # Find all audio files
     audio_paths = []
     for ext in file_extensions:
-        pattern = os.path.join(music_dir, '**', ext)
+        pattern = os.path.join(music_dir, "**", ext)
         audio_paths.extend(glob.glob(pattern, recursive=True))
 
     print(f"Found {len(audio_paths)} audio files")
@@ -252,31 +249,35 @@ def process_music_library(music_dir, file_extensions=['*.mp3', '*.wav', '*.flac'
     # Energy distribution
     energy_counts = {}
     for pred in predictions:
-        energy = pred['energy']
+        energy = pred["energy"]
         energy_counts[energy] = energy_counts.get(energy, 0) + 1
 
     print("\nEnergy Distribution:")
     for energy, count in sorted(energy_counts.items()):
-        print(f"  {energy}: {count} ({count/len(predictions)*100:.1f}%)")
+        print(f"  {energy}: {count} ({count / len(predictions) * 100:.1f}%)")
 
     # Vibe distribution
     vibe_counts = {}
     for pred in predictions:
-        for vibe in pred['vibes']:
+        for vibe in pred["vibes"]:
             vibe_counts[vibe] = vibe_counts.get(vibe, 0) + 1
 
     print("\nVibe Distribution:")
     for vibe, count in sorted(vibe_counts.items(), key=lambda x: x[1], reverse=True):
-        print(f"  {vibe}: {count} ({count/len(predictions)*100:.1f}%)")
+        print(f"  {vibe}: {count} ({count / len(predictions) * 100:.1f}%)")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description='Classify music tracks')
-    parser.add_argument('music_dir', help='Path to music library')
-    parser.add_argument('--extensions', nargs='+', default=['*.mp3', '*.wav', '*.flac', '*.m4a'],
-                        help='File extensions to process')
+    parser = argparse.ArgumentParser(description="Classify music tracks")
+    parser.add_argument("music_dir", help="Path to music library")
+    parser.add_argument(
+        "--extensions",
+        nargs="+",
+        default=["*.mp3", "*.wav", "*.flac", "*.m4a"],
+        help="File extensions to process",
+    )
 
     args = parser.parse_args()
 

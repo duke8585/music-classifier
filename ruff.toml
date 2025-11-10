@@ -1,0 +1,26 @@
+# Set the maximum line length to 100
+line-length = 100
+
+# Target Python 3.10+
+target-version = "py310"
+
+[lint]
+# Enable common best practice rules
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "W",   # pycodestyle warnings
+]
+
+# Ignore specific rules if needed
+ignore = [
+    "E402",  # Module level import not at top of file (needed for sys.path modifications)
+]
+
+[format]
+# Use double quotes for strings
+quote-style = "double"
+
+# Indent with spaces
+indent-style = "space"

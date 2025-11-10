@@ -2,13 +2,12 @@
 Rekordbox XML integration for writing ML predictions to MyTag fields.
 """
 
-import os
 import json
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
+import os
 import shutil
-from datetime import datetime
 import sys
+import xml.etree.ElementTree as ET
+from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from config.config import PREDICTIONS_DIR
@@ -38,29 +37,30 @@ class RekordboxIntegration:
             self.root = self.tree.getroot()
 
             # Find COLLECTION element
-            collection = self.root.find('.//COLLECTION')
+            collection = self.root.find(".//COLLECTION")
 
             if collection is None:
                 raise ValueError("COLLECTION element not found in XML")
 
             # Build track index
-            for track in collection.findall('TRACK'):
-                track_id = track.get('TrackID')
-                location = track.get('Location', '')
+            for track in collection.findall("TRACK"):
+                track_id = track.get("TrackID")
+                location = track.get("Location", "")
 
                 # Decode file path
-                if location.startswith('file://localhost/'):
-                    location = location.replace('file://localhost/', '/')
+                if location.startswith("file://localhost/"):
+                    location = location.replace("file://localhost/", "/")
 
                 # URL decode
                 from urllib.parse import unquote
+
                 location = unquote(location)
 
                 self.tracks[track_id] = {
-                    'element': track,
-                    'location': location,
-                    'name': track.get('Name', ''),
-                    'artist': track.get('Artist', '')
+                    "element": track,
+                    "location": location,
+                    "name": track.get("Name", ""),
+                    "artist": track.get("Artist", ""),
                 }
 
             print(f"Found {len(self.tracks)} tracks in Rekordbox library")
@@ -84,13 +84,13 @@ class RekordboxIntegration:
         unmatched_predictions = []
 
         for pred in predictions:
-            pred_path = os.path.normpath(pred['path'])
-            pred_filename = pred['filename']
+            pred_path = os.path.normpath(pred["path"])
+            pred_filename = pred["filename"]
 
             matched = False
 
             for track_id, track_info in self.tracks.items():
-                rb_path = os.path.normpath(track_info['location'])
+                rb_path = os.path.normpath(track_info["location"])
 
                 # Try exact path match first
                 if pred_path == rb_path:
@@ -113,7 +113,7 @@ class RekordboxIntegration:
 
         return matches
 
-    def write_tags(self, predictions, my_tag_format='energy_vibes'):
+    def write_tags(self, predictions, my_tag_format="energy_vibes"):
         """
         Write predictions to Rekordbox MyTag fields.
 
@@ -133,17 +133,17 @@ class RekordboxIntegration:
         updated_count = 0
 
         for track_id, pred in matches.items():
-            track_element = self.tracks[track_id]['element']
+            track_element = self.tracks[track_id]["element"]
 
             # Generate tag text based on format
-            if my_tag_format == 'energy_vibes':
+            if my_tag_format == "energy_vibes":
                 tag_text = f"{pred['energy']} | {', '.join(pred['vibes'])}"
-            elif my_tag_format == 'energy_only':
-                tag_text = pred['energy']
-            elif my_tag_format == 'vibes_only':
-                tag_text = ', '.join(pred['vibes'])
-            elif my_tag_format == 'detailed':
-                energy_conf = pred['energy_confidence']
+            elif my_tag_format == "energy_only":
+                tag_text = pred["energy"]
+            elif my_tag_format == "vibes_only":
+                tag_text = ", ".join(pred["vibes"])
+            elif my_tag_format == "detailed":
+                energy_conf = pred["energy_confidence"]
                 tag_text = f"E:{pred['energy']}({energy_conf:.2f}) | V:{','.join(pred['vibes'])}"
             else:
                 tag_text = f"{pred['energy']} | {', '.join(pred['vibes'])}"
@@ -153,13 +153,13 @@ class RekordboxIntegration:
             # Try multiple possible tag fields
 
             # Option 1: Use Comments field
-            track_element.set('Comments', tag_text)
+            track_element.set("Comments", tag_text)
 
             # Option 2: Create TEMPO element if it doesn't exist
             # This is where some Rekordbox versions store custom tags
-            tempo_elem = track_element.find('TEMPO')
+            tempo_elem = track_element.find("TEMPO")
             if tempo_elem is not None:
-                tempo_elem.set('Inizio', tag_text)
+                tempo_elem.set("Inizio", tag_text)
 
             updated_count += 1
 
@@ -185,7 +185,7 @@ class RekordboxIntegration:
             print(f"Created backup: {backup_path}")
 
         # Save XML
-        self.tree.write(output_path, encoding='utf-8', xml_declaration=True)
+        self.tree.write(output_path, encoding="utf-8", xml_declaration=True)
         print(f"Saved modified XML to {output_path}")
 
     def generate_import_instructions(self):
@@ -252,7 +252,7 @@ def integrate_predictions_with_rekordbox(rekordbox_xml_path, predictions_json_pa
         predictions_files = [
             os.path.join(PREDICTIONS_DIR, f)
             for f in os.listdir(PREDICTIONS_DIR)
-            if f.endswith('.json')
+            if f.endswith(".json")
         ]
 
         if not predictions_files:
@@ -261,7 +261,7 @@ def integrate_predictions_with_rekordbox(rekordbox_xml_path, predictions_json_pa
         predictions_json_path = max(predictions_files, key=os.path.getmtime)
         print(f"Using predictions file: {predictions_json_path}")
 
-    with open(predictions_json_path, 'r') as f:
+    with open(predictions_json_path, "r") as f:
         predictions = json.load(f)
 
     print(f"Loaded {len(predictions)} predictions")
@@ -271,25 +271,28 @@ def integrate_predictions_with_rekordbox(rekordbox_xml_path, predictions_json_pa
     rb.parse_xml()
 
     # Write tags
-    rb.write_tags(predictions, my_tag_format='energy_vibes')
+    rb.write_tags(predictions, my_tag_format="energy_vibes")
 
     # Save modified XML
-    output_path = rekordbox_xml_path.replace('.xml', '_tagged.xml')
+    output_path = rekordbox_xml_path.replace(".xml", "_tagged.xml")
     rb.save_xml(output_path=output_path, create_backup=True)
 
     # Print instructions
     print(rb.generate_import_instructions())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description='Integrate predictions with Rekordbox')
-    parser.add_argument('rekordbox_xml', help='Path to Rekordbox XML file')
-    parser.add_argument('--predictions', help='Path to predictions JSON (optional)')
-    parser.add_argument('--format', default='energy_vibes',
-                        choices=['energy_vibes', 'energy_only', 'vibes_only', 'detailed'],
-                        help='MyTag format')
+    parser = argparse.ArgumentParser(description="Integrate predictions with Rekordbox")
+    parser.add_argument("rekordbox_xml", help="Path to Rekordbox XML file")
+    parser.add_argument("--predictions", help="Path to predictions JSON (optional)")
+    parser.add_argument(
+        "--format",
+        default="energy_vibes",
+        choices=["energy_vibes", "energy_only", "vibes_only", "detailed"],
+        help="MyTag format",
+    )
 
     args = parser.parse_args()
 

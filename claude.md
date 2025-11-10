@@ -38,6 +38,14 @@ Build an ML-powered system to automatically tag ~6,000 electronic music tracks w
 - **Essentia**: Feature extraction (electronic music optimized)
 - **scikit-learn/XGBoost**: Classification
 - **librosa**: Audio processing (AIFF compatible)
+- **Ruff**: Code formatting and linting
+
+## Development Workflow
+- **Virtual Environment**: All make commands automatically activate `.venv` before running Python/Ruff
+- **Always format code at the end of each implementation cycle**: Run `make format` to ensure consistent code style
+- Ruff configuration is in `ruff.toml` (100 char line length, Python 3.10+)
+- Format command: `make format` (runs `ruff format .` and `ruff check --fix .`)
+- All Python commands in Makefile source `.venv/bin/activate` first
 
 ## Success Criteria
 User can search "dark, hypnotic peak-time tracks" in Rekordbox and find relevant results immediately.

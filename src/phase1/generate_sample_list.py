@@ -11,6 +11,7 @@ from pathlib import Path
 MUSIC_DIR = Path("/Users/maxr/iCloudDrive/bandcamp_exports")
 OUTPUT_FILE = Path("data/sample_tracks.json")
 
+
 def main():
     # Find all AIFF files
     print(f"Scanning {MUSIC_DIR} for AIFF files...")
@@ -32,16 +33,18 @@ def main():
         # Parse filename: "Artist - Title – Label - Track.aiff"
         filename = file_path.stem  # Remove .aiff extension
 
-        tracks.append({
-            'path': str(file_path),
-            'filename': file_path.name,
-            'title': filename,
-            'month': file_path.parent.name
-        })
+        tracks.append(
+            {
+                "path": str(file_path),
+                "filename": file_path.name,
+                "title": filename,
+                "month": file_path.parent.name,
+            }
+        )
 
     # Save to JSON
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUTPUT_FILE, 'w') as f:
+    with open(OUTPUT_FILE, "w") as f:
         json.dump(tracks, f, indent=2)
 
     print(f"\nSelected {len(tracks)} random tracks:")
@@ -50,5 +53,6 @@ def main():
 
     print(f"\nSaved to {OUTPUT_FILE}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

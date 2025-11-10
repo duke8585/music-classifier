@@ -1,5 +1,5 @@
 # Audio Processing and Feature Extraction
-essentia==2.1b6.dev1110
+essentia #==2.1b6.dev1110
 librosa>=0.10.0
 audioread>=3.0.0
 soundfile>=0.12.0
@@ -16,7 +16,7 @@ requests>=2.31.0
 tqdm>=4.66.0
 
 # GUI and Visualization
-tkinter-tooltip>=2.1.0
+flask>=3.0.0
 matplotlib>=3.7.0
 seaborn>=0.12.0
 

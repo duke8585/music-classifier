@@ -6,19 +6,26 @@ import os
 
 # Project paths
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
-MANUAL_LABELS_DIR = os.path.join(DATA_DIR, 'manual_labels')
-FEATURES_DIR = os.path.join(DATA_DIR, 'features')
-MODELS_DIR = os.path.join(DATA_DIR, 'models')
-PREDICTIONS_DIR = os.path.join(DATA_DIR, 'predictions')
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+MANUAL_LABELS_DIR = os.path.join(DATA_DIR, "manual_labels")
+FEATURES_DIR = os.path.join(DATA_DIR, "features")
+MODELS_DIR = os.path.join(DATA_DIR, "models")
+PREDICTIONS_DIR = os.path.join(DATA_DIR, "predictions")
 
 # Taxonomy
-ENERGY_LABELS = ['warm-up', 'building', 'peak', 'intense', 'closing']
-VIBE_LABELS = ['dark', 'melodic', 'hypnotic', 'dubby', 'atmospheric', 'trippy', 'analog/lofi', 'clean/digital']
-
-# MTG-Jamendo Dataset
-MTG_JAMENDO_API_BASE = "https://mtg.github.io/mtg-jamendo-dataset"
-MTG_JAMENDO_METADATA_URL = "https://github.com/MTG/mtg-jamendo-dataset/raw/master/data/autotagging.tsv"
+ENERGY_LABELS = ["warm-up", "building", "peak", "intense", "closing"]
+VIBE_LABELS = [
+    "deep",
+    "dark",
+    "melodic",
+    "hypnotic",
+    "atmospheric",
+    "trippy",
+    "breaks",
+    "dubby",
+    "analog/lofi",
+    "clean/digital",
+]
 
 # Training parameters
 MANUAL_LABEL_TARGET = 300  # Target number of manually labeled tracks

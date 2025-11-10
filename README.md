@@ -40,11 +40,17 @@ music-classifier/
 │   ├── models/                # Trained ML models
 │   └── predictions/           # Inference results
 ├── src/
-│   ├── phase1/                # Labeling tool
+│   ├── phase1/                # Phase 1: Manual labeling
+│   │   ├── label_app.py       # Flask web app for labeling
+│   │   ├── generate_sample_list.py  # Random sample generator
+│   │   └── convert_sample_to_wav.py  # Optional AIFF→WAV converter
 │   ├── phase2/                # Training pipeline
 │   ├── phase3/                # Inference system
 │   └── phase4/                # Rekordbox integration
+├── templates/
+│   └── label.html             # Labeling webapp UI
 ├── tests/                     # Unit tests
+├── Makefile                   # Build commands
 ├── main.py                    # CLI entry point
 └── requirements.txt           # Dependencies
 ```
@@ -54,7 +60,8 @@ music-classifier/
 ### Prerequisites
 
 - Python 3.8 or higher
-- Audio files in supported formats (MP3, WAV, FLAC, M4A)
+- Audio files in supported formats (AIFF, MP3, WAV, FLAC, M4A)
+- Safari browser (for AIFF playback in labeling tool)
 - (Optional) Rekordbox for DJ library integration
 
 ### Setup
@@ -85,33 +92,51 @@ pip install essentia
 
 ## Quick Start Guide
 
-### Phase 1: Labeling Tool (Week 1-2)
+### Phase 1: Manual Labeling (Week 1-2)
 
-#### Step 1.1: Download Metadata
+#### Step 1: Generate Sample Tracks
 ```bash
-python main.py download
+make sample
 ```
 
-This downloads MTG-Jamendo metadata (~16k electronic music tracks) and creates the initial dataset for labeling.
+This randomly selects 10 AIFF files from your music library for labeling. Edit the path in [src/phase1/generate_sample_list.py](src/phase1/generate_sample_list.py) to point to your music directory.
 
-#### Step 1.2: Label Tracks
+Default: `/Users/maxr/iCloudDrive/bandcamp_exports/**/*.aiff`
+
+#### Step 2: Start Labeling
 ```bash
-python main.py label
+make label
 ```
 
-This launches a GUI labeling tool where you can:
-- Listen to tracks (if audio files are available)
-- Select energy level (radio buttons)
-- Select multiple vibes (checkboxes)
-- Save labels to `data/manual_labels/manual_labels.json`
+This launches a Flask web app at http://localhost:5001 and opens it in Safari. The interface includes:
+
+**Note:** Safari is required for AIFF playback. If you prefer Chrome/Firefox, first convert samples to WAV:
+```bash
+python src/phase1/convert_sample_to_wav.py
+```
+- Audio player with speed control (±10% playback rate)
+- Energy level buttons (keyboard shortcuts: 1-5)
+- Vibe buttons with multi-select (keyboard shortcuts: QWERTASD)
+- Autoplay on track navigation
+- Progress tracking
+
+Labels are saved to `data/manual_labels.json`
 
 **Target:** Label 200-300 tracks for good model performance.
+
+**Keyboard Shortcuts:**
+- `1-6`: Select energy level
+- `asdfghjkl` (home row): Toggle vibes 1-10
+- `xcvbnm` (bottom row): Toggle remaining vibes
+- `Enter`: Save and advance to next track
+- `Arrow keys`: Navigate between tracks
+- `Space`: Play/pause
 
 **Tips:**
 - Focus on diverse examples across all energy levels
 - Label tracks you know well from your DJ sets
-- Use the "Jump to Track" feature to review specific tracks
-- Save frequently (automatic on each "Save & Next")
+- Use speed control to quickly assess energy level
+- Vibes are multi-select - choose all that apply
 
 ### Phase 2: Training (Week 3-4)
 
@@ -264,26 +289,29 @@ Search: "peak" + BPM filter 128-132
 ## CLI Reference
 
 ```bash
-# Phase 1: Data Preparation
-python main.py download           # Download MTG-Jamendo metadata
-python main.py label              # Launch labeling tool GUI
+# Phase 1: Manual Labeling
+make sample                      # Generate random sample from your music library
+make label                       # Start Flask labeling webapp (opens Safari)
 
 # Phase 2: Training
-python main.py extract            # Extract features from labeled tracks
-python main.py train              # Train classification models
+python main.py extract           # Extract features from labeled tracks
+python main.py train             # Train classification models
 
 # Phase 3: Inference
 python main.py predict <music_dir>               # Predict labels for library
-python main.py predict <music_dir> --extensions "*.mp3" "*.wav"
+python main.py predict <music_dir> --extensions "*.aiff" "*.mp3"
 
 # Phase 4: Rekordbox Integration
 python main.py rekordbox <xml_path>              # Integrate with Rekordbox
 python main.py rekordbox <xml_path> --predictions <json_path>
+
+# Cleanup
+make clean                       # Remove generated samples and labels
 ```
 
 ## Configuration
 
-Edit `config/config.py` to customize:
+Edit [config/config.py](config/config.py) to customize your taxonomy. Changes are automatically reflected in the labeling webapp.
 
 ```python
 # Taxonomy
@@ -326,10 +354,10 @@ HOP_SIZE = 1024
 - Try different algorithms (SVM, Neural Networks)
 - Use ensemble methods
 
-### 5. Bootstrap with MTG-Jamendo
-- Use MTG-Jamendo's existing tags as weak labels
+### 5. Use Pre-labeled Data (Optional)
+- If you have existing tagged music from other sources
 - Map their tags to your taxonomy
-- Pre-train on large dataset, fine-tune on your labels
+- Pre-train on larger dataset, fine-tune on your labels
 
 ## Troubleshooting
 
@@ -363,11 +391,11 @@ HOP_SIZE = 1024
 
 ## Tech Stack
 
-- **Essentia:** Audio feature extraction (electronic music optimized)
-- **librosa:** Alternative audio processing
+- **Flask:** Web-based labeling tool
+- **Essentia:** Audio feature extraction (electronic music optimized, AIFF compatible)
+- **librosa:** Alternative audio processing (AIFF compatible)
 - **scikit-learn:** Machine learning algorithms
 - **XGBoost:** Gradient boosting (if available)
-- **Tkinter:** GUI labeling tool
 - **pandas:** Data manipulation
 - **lxml:** XML processing for Rekordbox
 
@@ -383,13 +411,15 @@ Expected performance with 300 labeled tracks:
 
 ## Roadmap
 
-- [ ] Add web-based labeling interface
+- [x] Web-based labeling interface with Flask
+- [x] Audio playback with speed control
+- [x] Keyboard shortcuts for efficient labeling
 - [ ] Implement active learning for smart sample selection
 - [ ] Add support for Traktor and Serato
 - [ ] Create pre-trained models for common genres
-- [ ] Add audio preview in labeling tool
 - [ ] Implement confidence-based filtering
 - [ ] Add multi-genre support
+- [ ] Optional WAV conversion for broader browser support
 
 ## Contributing
 
@@ -406,8 +436,8 @@ MIT License - See LICENSE file for details
 
 ## Acknowledgments
 
-- MTG-Jamendo Dataset for training data
-- Essentia team for audio analysis tools
+- Essentia team for audio analysis tools optimized for electronic music
+- librosa team for AIFF-compatible audio processing
 - Electronic music DJ community for feature inspiration
 
 ## Support

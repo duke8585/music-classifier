@@ -11,12 +11,7 @@ import argparse
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from src.phase1.download_metadata import download_mtg_jamendo_metadata
-from src.phase1.labeling_tool import main as run_labeling_tool
-from src.phase2.feature_extraction import extract_features_for_labeled_tracks
-from src.phase2.train_models import main as train_models
-from src.phase3.inference import process_music_library
-from src.phase4.rekordbox_integration import integrate_predictions_with_rekordbox
+# Lazy imports to avoid dependency errors when running simple commands
 
 
 def main():
@@ -27,11 +22,8 @@ def main():
 
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
 
-    # Phase 1: Download metadata
-    download_parser = subparsers.add_parser('download', help='Download MTG-Jamendo metadata')
-
     # Phase 1: Labeling tool
-    label_parser = subparsers.add_parser('label', help='Launch labeling tool GUI')
+    label_parser = subparsers.add_parser('label', help='Launch labeling webapp')
 
     # Phase 2: Extract features
     features_parser = subparsers.add_parser('extract', help='Extract features from labeled tracks')
@@ -60,28 +52,31 @@ def main():
 
     # Execute command
     try:
-        if args.command == 'download':
-            print("Phase 1: Downloading MTG-Jamendo metadata...")
-            download_mtg_jamendo_metadata()
-
-        elif args.command == 'label':
-            print("Phase 1: Launching labeling tool...")
-            run_labeling_tool()
+        if args.command == 'label':
+            print("Phase 1: Launching labeling webapp...")
+            print("\nPlease use the Makefile instead:")
+            print("  make label")
+            print("\nThis will open Safari at http://localhost:5001")
+            return
 
         elif args.command == 'extract':
             print("Phase 2: Extracting features from labeled tracks...")
+            from src.phase2.feature_extraction import extract_features_for_labeled_tracks
             extract_features_for_labeled_tracks()
 
         elif args.command == 'train':
             print("Phase 2: Training classification models...")
+            from src.phase2.train_models import main as train_models
             train_models()
 
         elif args.command == 'predict':
             print(f"Phase 3: Predicting labels for music library at {args.music_dir}...")
+            from src.phase3.inference import process_music_library
             process_music_library(args.music_dir, args.extensions)
 
         elif args.command == 'rekordbox':
             print(f"Phase 4: Integrating predictions with Rekordbox XML...")
+            from src.phase4.rekordbox_integration import integrate_predictions_with_rekordbox
             integrate_predictions_with_rekordbox(args.xml_path, args.predictions)
 
         print("\n✓ Command completed successfully!")

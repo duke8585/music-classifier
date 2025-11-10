@@ -9,17 +9,18 @@ Build an ML-powered system to automatically tag ~6,000 electronic music tracks w
 
 ## 4 Phases (6 weeks)
 
-### Phase 1: Labeling Tool (Week 1-2)
-- Download MTG-Jamendo metadata (~16k electronic tracks)
-- Build GUI labeling tool (Tkinter or web-based)
-- User labels 200-300 tracks manually
+### Phase 1: Manual Labeling (Week 1-2)
+- **Implemented**: Flask-based web labeling tool at http://localhost:5001
+- Generate random sample: `make sample` (creates data/sample_tracks.json)
+- Start labeling: `make label` (auto-opens Safari)
+- Features: Audio playback with speed control, keyboard shortcuts, autoplay
+- User labels 200-300 tracks from personal library (~6,000 AIFF files in iCloud)
 - Output: data/manual_labels.json
 
 ### Phase 2: Training (Week 3-4)
 - Extract features with Essentia (electronic music optimized)
 - Train 2 models: Energy classifier + Vibe classifier
 - Start with Random Forest/XGBoost
-- Bootstrap with MTG-Jamendo if needed
 - Target: F1 > 0.70 (energy), F1 > 0.60 (vibe)
 
 ### Phase 3: Inference (Week 5)
@@ -33,10 +34,10 @@ Build an ML-powered system to automatically tag ~6,000 electronic music tracks w
 - Reimport to Rekordbox
 
 ## Tech Stack
-- Essentia: Feature extraction
-- scikit-learn/XGBoost: Classification
-- librosa: Audio processing
-- Tkinter or Flask: Labeling UI
+- **Flask**: Web-based labeling UI (Safari for AIFF support)
+- **Essentia**: Feature extraction (electronic music optimized)
+- **scikit-learn/XGBoost**: Classification
+- **librosa**: Audio processing (AIFF compatible)
 
 ## Success Criteria
 User can search "dark, hypnotic peak-time tracks" in Rekordbox and find relevant results immediately.

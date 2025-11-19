@@ -9,6 +9,8 @@ Automatically tag your DJ music library with mood and energy labels using machin
 
 This system analyzes audio files and predicts:
 
+> **Note:** The taxonomy is fully customizable. You can easily extend or modify the energy levels and vibes by editing [config/config.py](config/config.py) to match your DJ style and music genre.
+
 **Energy Levels (5 categories):**
 - warm-up
 - building
@@ -66,20 +68,26 @@ music-classifier/
 
 ### Setup
 
-1. Clone the repository:
+**Quick setup:**
 ```bash
 git clone <repository-url>
 cd music-classifier
+make setup
 ```
 
-2. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+This will create a virtual environment and install all dependencies.
 
-3. Install dependencies:
+**Manual setup (alternative):**
 ```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd music-classifier
+
+# 2. Create a virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# 3. Install dependencies
 pip install -r requirements.txt
 ```
 
@@ -120,7 +128,7 @@ python src/phase1/convert_sample_to_wav.py
 - Autoplay on track navigation
 - Progress tracking
 
-Labels are saved to `data/manual_labels.json`
+Labels are saved to `data/manual_labels/manual_labels.json`. See the **Automatic Label Backups** section below for information about how your labeling work is automatically protected.
 
 **Target:** Label 200-300 tracks for good model performance.
 
@@ -138,11 +146,44 @@ Labels are saved to `data/manual_labels.json`
 - Use speed control to quickly assess energy level
 - Vibes are multi-select - choose all that apply
 
+#### Advanced Labeling Features
+
+**Track Position Display:**
+The interface shows "Track X of Y" so you know exactly where you are in the labeling process. The counter updates automatically as you navigate through tracks.
+
+**Previous Label Display:**
+When you navigate to a track that's already been labeled, the interface displays:
+- Previously saved energy level
+- Previously saved vibes
+- Buttons are automatically pre-selected with existing labels
+- This allows you to easily update labels or skip already-labeled tracks
+
+**Sample Batch Management:**
+Each time you run `make sample`, the previous `sample_tracks.json` is automatically backed up with incremental numbering (e.g., `sample_tracks.bak.1.json`, `sample_tracks.bak.2.json`, etc.). This ensures you never lose track of any of your previous sample batches.
+
+**Automatic Label Backups:**
+Your precious labeling work is automatically protected:
+- Each time you start the labeling tool (`make label`), an incremental backup is created (e.g., `manual_labels.bak.1.json`, `manual_labels.bak.2.json`, etc.)
+- This protects your work if something goes wrong during a labeling session
+- All previous backups are preserved, allowing you to restore from any backup
+- You can restore from any backup by copying it back to `manual_labels.json`
+
+**Exclude Patterns:**
+Filter out unwanted tracks when generating samples. See the **Configuration** section below for details on customizing exclude patterns and other settings.
+
+**Sample Batch Size:**
+Adjust how many tracks to generate per batch in [config/config.py](config/config.py):
+
+```python
+SAMPLE_BATCH_SIZE = 100  # Default: 100 tracks per batch
+```
+
 ### Phase 2: Training (Week 3-4)
 
 #### Step 2.1: Extract Features
 ```bash
-python main.py extract
+make extract
+# Or: python main.py extract
 ```
 
 Extracts audio features from labeled tracks using Essentia or librosa:
@@ -156,7 +197,8 @@ Output: `data/features/training_features.json`
 
 #### Step 2.2: Train Models
 ```bash
-python main.py train
+make train
+# Or: python main.py train
 ```
 
 Trains two classifiers:
@@ -179,12 +221,14 @@ Output: Trained models in `data/models/`
 
 #### Batch Process Your Music Library
 ```bash
-python main.py predict /path/to/your/music/library
+make predict MUSIC_DIR=/path/to/your/music/library
+# Or: python main.py predict /path/to/your/music/library
 ```
 
 Optional: Specify file extensions
 ```bash
-python main.py predict /path/to/music --extensions "*.mp3" "*.flac"
+make predict MUSIC_DIR=/path/to/music EXTENSIONS="*.mp3 *.flac"
+# Or: python main.py predict /path/to/music --extensions "*.mp3" "*.flac"
 ```
 
 This will:
@@ -288,30 +332,60 @@ Search: "peak" + BPM filter 128-132
 
 ## CLI Reference
 
+### Makefile Commands (Recommended)
+
 ```bash
+# Setup
+make setup                                        # Create venv and install dependencies
+make help                                         # Show all available commands
+
 # Phase 1: Manual Labeling
-make sample                      # Generate random sample from your music library
-make label                       # Start Flask labeling webapp (opens Safari)
+make sample                                       # Generate random sample from music library
+make label                                        # Start Flask labeling webapp (opens Safari)
 
 # Phase 2: Training
-python main.py extract           # Extract features from labeled tracks
-python main.py train             # Train classification models
+make extract                                      # Extract features from labeled tracks
+make train                                        # Train classification models
 
 # Phase 3: Inference
-python main.py predict <music_dir>               # Predict labels for library
-python main.py predict <music_dir> --extensions "*.aiff" "*.mp3"
+make predict MUSIC_DIR=/path/to/music            # Predict labels for entire library
+make predict MUSIC_DIR=/path/to/music EXTENSIONS="*.mp3 *.flac"
 
 # Phase 4: Rekordbox Integration
-python main.py rekordbox <xml_path>              # Integrate with Rekordbox
-python main.py rekordbox <xml_path> --predictions <json_path>
+make rekordbox XML_PATH=/path/to/rekordbox.xml   # Integrate with Rekordbox
+
+# Code Quality
+make format                                       # Format code with Ruff
 
 # Cleanup
-make clean                       # Remove generated samples and labels
+make clean                                        # Remove generated samples and labels
+```
+
+### Python CLI (Alternative)
+
+All commands can also be run directly via Python if you prefer:
+
+```bash
+# Phase 1: Manual Labeling
+python src/phase1/generate_sample_list.py
+python src/phase1/label_app.py
+
+# Phase 2: Training
+python main.py extract
+python main.py train
+
+# Phase 3: Inference
+python main.py predict /path/to/music
+python main.py predict /path/to/music --extensions "*.aiff" "*.mp3"
+
+# Phase 4: Rekordbox Integration
+python main.py rekordbox /path/to/rekordbox.xml
+python main.py rekordbox /path/to/rekordbox.xml --predictions /path/to/predictions.json
 ```
 
 ## Configuration
 
-Edit [config/config.py](config/config.py) to customize your taxonomy. Changes are automatically reflected in the labeling webapp.
+Edit [config/config.py](config/config.py) to customize your taxonomy and sampling behavior. Changes are automatically reflected in the labeling webapp.
 
 ```python
 # Taxonomy
@@ -320,10 +394,24 @@ VIBE_LABELS = ['dark', 'melodic', 'hypnotic', 'dubby',
                'atmospheric', 'trippy', 'analog/lofi', 'clean/digital']
 
 # Training parameters
-MANUAL_LABEL_TARGET = 300  # Target number of labeled tracks
+SAMPLE_BATCH_SIZE = 100    # Number of tracks per sampling batch
 TEST_SIZE = 0.2            # Train/test split ratio
 N_ESTIMATORS = 200         # Number of trees in forest
 MAX_DEPTH = 15             # Max tree depth
+
+# Sampling exclusion patterns
+# Case-insensitive regex patterns that match against the full file path
+# When you run `make sample`, files matching these patterns are excluded
+EXCLUDE_PATTERNS = [
+    r"docetism",      # Exclude specific artists/albums
+    # r"remix",       # Uncomment to exclude remixes
+    # r"live",        # Uncomment to exclude live recordings
+    # r"radio edit",  # Uncomment to exclude radio edits
+]
+# Examples:
+#   r"artist_name"     - Exclude all tracks by specific artist
+#   r"\\(remix\\)"     - Exclude all remixes (note: escape special regex chars)
+#   r"live|bootleg"    - Exclude live recordings OR bootlegs
 
 # Feature extraction
 SAMPLE_RATE = 44100
@@ -414,6 +502,11 @@ Expected performance with 300 labeled tracks:
 - [x] Web-based labeling interface with Flask
 - [x] Audio playback with speed control
 - [x] Keyboard shortcuts for efficient labeling
+- [x] Track position indicator (X of Y)
+- [x] Display previously saved labels
+- [x] Automatic sample batch backups
+- [x] Regex-based file exclusion patterns
+- [x] Configurable sample batch size
 - [ ] Implement active learning for smart sample selection
 - [ ] Add support for Traktor and Serato
 - [ ] Create pre-trained models for common genres

@@ -4,6 +4,7 @@ Usage: python src/phase1/label_app.py
 """
 
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -16,13 +17,20 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
-from config.config import ENERGY_LABELS, VIBE_LABELS
+from config.config import (
+    ENERGY_LABELS,
+    PREDICTION_AUTO_ACCEPT_ENERGY,
+    PREDICTION_AUTO_ACCEPT_VIBE,
+    PREDICTION_VIBE_THRESHOLD,
+    VIBE_LABELS,
+)
 
 app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
 
 # Configuration
 SAMPLE_TRACKS_FILE = PROJECT_ROOT / "data/sample_tracks.json"  # List of tracks to label
 LABELS_FILE = PROJECT_ROOT / "data/manual_labels.json"
+PREDICTIONS_FILE = PROJECT_ROOT / "data/predictions/predictions.json"
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".flac", ".m4a", ".ogg", ".aiff"}
 
 
@@ -38,10 +46,51 @@ def load_labels():
     return {}
 
 
+def load_predictions():
+    """Load predictions from JSON file."""
+    if PREDICTIONS_FILE.exists():
+        with open(PREDICTIONS_FILE, "r") as f:
+            predictions_list = json.load(f)
+            # Convert list to dict keyed by filename for fast lookup
+            return {p["filename"]: p for p in predictions_list}
+    return {}
+
+
+def backup_labels():
+    """
+    Create a backup of manual_labels.json.
+
+    Called once when the Flask app starts to preserve labels before the session.
+    Creates incremental backup: manual_labels.bak.N.json (e.g., .bak.1.json, .bak.2.json, etc.)
+    """
+    if not LABELS_FILE.exists():
+        return
+
+    # Find existing backup files with pattern manual_labels.bak.N.json
+    existing_backups = list(LABELS_FILE.parent.glob("manual_labels.bak.*.json"))
+
+    # Extract backup numbers and find the max
+    backup_numbers = []
+    for backup_file in existing_backups:
+        # Extract number from filename like "manual_labels.bak.1.json"
+        stem = backup_file.stem  # "manual_labels.bak.1"
+        parts = stem.split(".")
+        if len(parts) >= 3 and parts[-1].isdigit():
+            backup_numbers.append(int(parts[-1]))
+
+    # Determine next backup number
+    next_num = max(backup_numbers, default=0) + 1
+
+    # Create backup with incremental number
+    backup_path = LABELS_FILE.parent / f"manual_labels.bak.{next_num}.json"
+    shutil.copy2(LABELS_FILE, backup_path)
+    print(f"Created backup: {backup_path.name}")
+
+
 def save_labels(labels):
     """Save labels to JSON file."""
     LABELS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(LABELS_FILE, "w") as f:
+    with open(LABELS_FILE, "w", encoding="utf-8") as f:
         json.dump(labels, f, indent=2)
 
 
@@ -69,6 +118,12 @@ def index():
             current_index = i
             break
 
+    # Calculate current batch labeled count
+    # (how many tracks from current sample_tracks.json are in manual_labels.json)
+    current_batch_labeled = sum(
+        1 for track in audio_files if track["filename"] in labels
+    )
+
     return render_template(
         "label.html",
         audio_files=audio_files,
@@ -78,6 +133,10 @@ def index():
         labels=labels,
         total_files=len(audio_files),
         labeled_count=len(labels),
+        current_batch_labeled=current_batch_labeled,
+        prediction_vibe_threshold=PREDICTION_VIBE_THRESHOLD,
+        prediction_auto_accept_energy=PREDICTION_AUTO_ACCEPT_ENERGY,
+        prediction_auto_accept_vibe=PREDICTION_AUTO_ACCEPT_VIBE,
     )
 
 
@@ -121,7 +180,17 @@ def save_label():
     labels[filename] = {"energy": energy, "vibes": vibes}
     save_labels(labels)
 
-    return jsonify({"success": True, "labeled_count": len(labels)})
+    # Calculate current batch labeled count
+    audio_files = get_audio_files()
+    current_batch_labeled = sum(
+        1 for track in audio_files if track["filename"] in labels
+    )
+
+    return jsonify({
+        "success": True,
+        "labeled_count": len(labels),
+        "current_batch_labeled": current_batch_labeled
+    })
 
 
 @app.route("/get_label/<path:filename>")
@@ -130,6 +199,13 @@ def get_label(filename):
     labels = load_labels()
     # Handle both old format (filename keys) and new format
     return jsonify(labels.get(filename, {}))
+
+
+@app.route("/get_prediction/<path:filename>")
+def get_prediction(filename):
+    """Get AI prediction for a track (if available)."""
+    predictions = load_predictions()
+    return jsonify(predictions.get(filename, {}))
 
 
 @app.route("/stats")
@@ -153,6 +229,9 @@ if __name__ == "__main__":
     print(f"{'=' * 60}")
     print(f"Sample tracks file: {SAMPLE_TRACKS_FILE.absolute()}")
     print(f"Labels file: {LABELS_FILE.absolute()}")
+
+    # Create backup of existing labels before starting
+    backup_labels()
 
     tracks = get_audio_files()
     print(f"Audio files loaded: {len(tracks)}")

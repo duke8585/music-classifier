@@ -4,6 +4,12 @@
 VENV := .venv
 PYTHON := . $(VENV)/bin/activate && python
 RUFF := . $(VENV)/bin/activate && ruff
+PIP := . $(VENV)/bin/activate && pip
+
+# Default parameters for predict command
+MUSIC_DIR ?= /Users/maxr/iCloudDrive/bandcamp_exports
+EXTENSIONS ?=
+XML_PATH ?=
 
 help:
 	@echo "Music Classifier - Available commands:"
@@ -14,6 +20,17 @@ help:
 	@echo "  make clean     - Clean up generated files"
 	@echo ""
 	@echo "Note: All commands automatically activate the .venv virtual environment"
+
+setup:
+	@echo "Creating virtual environment..."
+	@python -m venv $(VENV)
+	@echo "Installing dependencies..."
+	@$(PIP) install --upgrade pip
+	@$(PIP) install -r requirements.txt
+	@echo ""
+	@echo "Setup complete! You can now run:"
+	@echo "  make sample    - Generate sample tracks"
+	@echo "  make label     - Start labeling"
 
 sample:
 	@echo "Generating random sample of tracks..."

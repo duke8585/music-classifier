@@ -34,14 +34,14 @@ ENV/
 *~
 
 # Data files
-data/manual_labels/*.json
 data/features/*.json
 data/models/*.pkl
 data/models/*.json
 data/predictions/*.json
 data/predictions/*.csv
 data/*.tsv
-data/sample_tracks.json
+data/manual_labels*.json
+data/sample_tracks*.json
 
 # Keep directory structure
 !data/manual_labels/.gitkeep

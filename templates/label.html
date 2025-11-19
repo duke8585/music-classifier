@@ -65,6 +65,17 @@
             margin-bottom: 10px;
         }
 
+        .label-status {
+            display: inline-block;
+            padding: 4px 12px;
+            margin-left: 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #2d5a2d;
+            color: #7cf07c;
+        }
+
         audio {
             width: 100%;
             margin-bottom: 15px;
@@ -162,6 +173,64 @@
             color: rgba(255,255,255,0.7);
         }
 
+        .label-btn .confidence {
+            float: right;
+            font-weight: bold;
+            margin-left: 8px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .label-btn .confidence.low {
+            background: rgba(34, 197, 94, 0.1);
+            color: rgba(34, 197, 94, 0.4);
+        }
+
+        .label-btn .confidence.medium {
+            background: rgba(34, 197, 94, 0.15);
+            color: rgba(34, 197, 94, 0.7);
+        }
+
+        .label-btn .confidence.high {
+            background: rgba(34, 197, 94, 0.2);
+            color: rgba(34, 197, 94, 1.0);
+        }
+
+        .threshold-info {
+            font-size: 11px;
+            font-style: italic;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .accept-predictions-btn {
+            padding: 12px 30px;
+            font-size: 16px;
+            background: #666;
+            color: #fff;
+            border: 2px solid #888;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin-bottom: 15px;
+        }
+
+        .accept-predictions-btn:hover {
+            background: #777;
+            border-color: #999;
+        }
+
+        .accept-predictions-btn.active {
+            background: #22c55e;
+            border-color: #16a34a;
+        }
+
+        .accept-predictions-btn.active:hover {
+            background: #16a34a;
+        }
+
         .save-section {
             text-align: center;
         }
@@ -232,8 +301,15 @@
         <header>
             <h1>Music Labeling Tool</h1>
             <div class="progress">
-                <strong id="labeled-count">{{ labeled_count }}</strong> / {{ total_files }} tracks labeled
-                (<span id="progress-percent">{{ (labeled_count / total_files * 100) | round(1) if total_files > 0 else 0 }}%</span>)
+                <div style="margin-bottom: 5px;">
+                    Current batch: <strong id="current-batch-labeled">{{ current_batch_labeled }}</strong> / {{ total_files }} labeled
+                    (<span id="current-batch-percent">{{ (current_batch_labeled / total_files * 100) | round(1) if total_files > 0 else 0 }}%</span>)
+                    <span style="color: #666; font-size: 13px;">(sample_tracks.json)</span>
+                </div>
+                <div>
+                    Total labeled: <strong id="total-labeled">{{ labeled_count }}</strong> tracks
+                    <span style="color: #666; font-size: 13px;">(manual_labels.json)</span>
+                </div>
             </div>
         </header>
 
@@ -241,6 +317,22 @@
             <div class="track-info">
                 <div class="track-name" id="track-name">
                     {% if audio_files %}{{ audio_files[current_index]['title'] }}{% else %}No tracks found{% endif %}
+                </div>
+                <div style="color: #888; font-size: 14px; margin-top: 5px;" id="track-position">
+                    Track <span id="current-track">{{ current_index + 1 }}</span> of {{ audio_files | length }}
+                </div>
+                <div id="current-labels" style="margin-top: 15px; padding: 12px; background: #1e1e1e; border-radius: 6px; display: none;">
+                    <div style="font-size: 13px; color: #888; margin-bottom: 8px;">Previously labeled as:</div>
+                    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                        <div>
+                            <span style="color: #888; font-size: 12px;">Energy:</span>
+                            <span id="current-energy" style="color: #4a9eff; font-weight: 600; margin-left: 5px;"></span>
+                        </div>
+                        <div>
+                            <span style="color: #888; font-size: 12px;">Vibes:</span>
+                            <span id="current-vibes" style="color: #4a9eff; font-weight: 600; margin-left: 5px;"></span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -268,6 +360,9 @@
         <div class="labeling-section">
             <div class="label-group">
                 <h2>Energy Level</h2>
+                <div class="threshold-info" id="energy-threshold-info" style="display: none;">
+                    Threshold: vibe ≥ {{ (prediction_vibe_threshold * 100)|int }}%, auto-accept ≥ {{ (prediction_auto_accept_energy * 100)|int }}%
+                </div>
                 <div class="label-buttons">
                     {% for energy in energy_labels %}
                     <button class="label-btn energy-btn" data-value="{{ energy }}" onclick="selectEnergy('{{ energy }}')">
@@ -280,13 +375,16 @@
 
             <div class="label-group">
                 <h2>Vibes (Multi-select)</h2>
+                <div class="threshold-info" id="vibe-threshold-info" style="display: none;">
+                    Threshold: ≥ {{ (prediction_vibe_threshold * 100)|int }}%, auto-accept ≥ {{ (prediction_auto_accept_vibe * 100)|int }}%
+                </div>
                 <div class="vibe-buttons">
                     {% for vibe in vibe_labels %}
                     {% set idx = loop.index0 %}
-                    {% if idx < 10 %}
+                    {% if idx < 9 %}
                         {% set key = 'asdfghjkl'[idx] %}
                     {% else %}
-                        {% set key = 'xcvbnm'[idx - 10] %}
+                        {% set key = 'xcvbnm'[idx - 9] %}
                     {% endif %}
                     <button class="label-btn vibe-btn" data-value="{{ vibe }}" data-index="{{ idx }}" data-key="{{ key }}" onclick="toggleVibe('{{ vibe }}')">
                         {{ vibe | title }}
@@ -298,6 +396,9 @@
         </div>
 
         <div class="save-section">
+            <button class="accept-predictions-btn" id="accept-predictions-btn" onclick="acceptPredictions()" style="display: none;">
+                Accept AI Predictions
+            </button>
             <button class="save-btn" id="save-btn" onclick="saveLabel()">
                 Save & Next Track
             </button>
@@ -313,6 +414,12 @@
         let currentIndex = {{ current_index }};
         let selectedEnergy = null;
         let selectedVibes = new Set();
+        let currentPrediction = null;
+
+        // Prediction thresholds from config
+        const VIBE_THRESHOLD = {{ prediction_vibe_threshold }};
+        const AUTO_ACCEPT_ENERGY = {{ prediction_auto_accept_energy }};
+        const AUTO_ACCEPT_VIBE = {{ prediction_auto_accept_vibe }};
 
         function updatePlaybackSpeed(speed) {
             const audio = document.getElementById('audio-player');
@@ -322,16 +429,46 @@
 
         // Load existing labels for current track
         async function loadCurrentLabel() {
-            const filename = audioFiles[currentIndex];
-            const response = await fetch(`/get_label/${encodeURIComponent(filename)}`);
-            const label = await response.json();
+            const filename = audioFiles[currentIndex].filename;
 
-            // Reset selections
-            document.querySelectorAll('.energy-btn').forEach(btn => btn.classList.remove('selected'));
-            document.querySelectorAll('.vibe-btn').forEach(btn => btn.classList.remove('selected'));
+            // Load manual label
+            const labelResponse = await fetch(`/get_label/${encodeURIComponent(filename)}`);
+            const label = await labelResponse.json();
+
+            // Load prediction
+            const predResponse = await fetch(`/get_prediction/${encodeURIComponent(filename)}`);
+            const prediction = await predResponse.json();
+            currentPrediction = prediction;
+
+            // Reset selections and confidence badges
+            document.querySelectorAll('.energy-btn').forEach(btn => {
+                btn.classList.remove('selected');
+                // Remove existing confidence badge if present
+                const existing = btn.querySelector('.confidence');
+                if (existing) existing.remove();
+            });
+            document.querySelectorAll('.vibe-btn').forEach(btn => {
+                btn.classList.remove('selected');
+                // Remove existing confidence badge if present
+                const existing = btn.querySelector('.confidence');
+                if (existing) existing.remove();
+            });
             selectedVibes.clear();
 
-            // Apply existing labels
+            // Show/hide existing labels display
+            const currentLabelsDiv = document.getElementById('current-labels');
+            const hasLabels = label.energy || (label.vibes && label.vibes.length > 0);
+
+            if (hasLabels) {
+                currentLabelsDiv.style.display = 'block';
+                document.getElementById('current-energy').textContent = label.energy || 'none';
+                document.getElementById('current-vibes').textContent =
+                    (label.vibes && label.vibes.length > 0) ? label.vibes.join(', ') : 'none';
+            } else {
+                currentLabelsDiv.style.display = 'none';
+            }
+
+            // Apply existing labels to buttons
             if (label.energy) {
                 selectedEnergy = label.energy;
                 document.querySelector(`.energy-btn[data-value="${label.energy}"]`)?.classList.add('selected');
@@ -345,6 +482,86 @@
                     document.querySelector(`.vibe-btn[data-value="${vibe}"]`)?.classList.add('selected');
                 });
             }
+
+            // Display prediction confidence badges (if prediction exists)
+            const hasPrediction = prediction && (prediction.energy || prediction.vibe_details);
+            const acceptBtn = document.getElementById('accept-predictions-btn');
+            const energyThresholdInfo = document.getElementById('energy-threshold-info');
+            const vibeThresholdInfo = document.getElementById('vibe-threshold-info');
+
+            if (hasPrediction) {
+                acceptBtn.style.display = 'inline-block';
+                acceptBtn.classList.add('active');
+                energyThresholdInfo.style.display = 'block';
+                vibeThresholdInfo.style.display = 'block';
+
+                // Add energy confidence badges
+                if (prediction.energy_top3) {
+                    prediction.energy_top3.forEach(item => {
+                        const btn = document.querySelector(`.energy-btn[data-value="${item.label}"]`);
+                        if (btn) {
+                            const confidence = Math.round(item.confidence * 100);
+                            const badge = document.createElement('span');
+                            badge.className = 'confidence ' + getConfidenceClass(item.confidence);
+                            badge.textContent = confidence + '%';
+                            // Insert before shortcut span
+                            const shortcut = btn.querySelector('.shortcut');
+                            btn.insertBefore(badge, shortcut);
+                        }
+                    });
+                }
+
+                // Add vibe confidence badges
+                if (prediction.vibe_details) {
+                    prediction.vibe_details.forEach(item => {
+                        const btn = document.querySelector(`.vibe-btn[data-value="${item.label}"]`);
+                        if (btn) {
+                            const confidence = Math.round(item.confidence * 100);
+                            const badge = document.createElement('span');
+                            badge.className = 'confidence ' + getConfidenceClass(item.confidence);
+                            badge.textContent = confidence + '%';
+                            // Insert before shortcut span
+                            const shortcut = btn.querySelector('.shortcut');
+                            btn.insertBefore(badge, shortcut);
+                        }
+                    });
+                }
+            } else {
+                acceptBtn.style.display = 'none';
+                energyThresholdInfo.style.display = 'none';
+                vibeThresholdInfo.style.display = 'none';
+            }
+        }
+
+        function getConfidenceClass(confidence) {
+            if (confidence >= 0.8) return 'high';
+            if (confidence >= 0.6) return 'medium';
+            return 'low';
+        }
+
+        function acceptPredictions() {
+            if (!currentPrediction) return;
+
+            // Accept predicted energy if available
+            if (currentPrediction.energy) {
+                selectEnergy(currentPrediction.energy);
+            }
+
+            // Accept predicted vibes (based on threshold)
+            if (currentPrediction.vibe_details) {
+                selectedVibes.clear();
+                document.querySelectorAll('.vibe-btn').forEach(btn => btn.classList.remove('selected'));
+
+                currentPrediction.vibe_details.forEach(item => {
+                    if (item.predicted && item.confidence >= VIBE_THRESHOLD) {
+                        selectedVibes.add(item.label);
+                        const btn = document.querySelector(`.vibe-btn[data-value="${item.label}"]`);
+                        if (btn) btn.classList.add('selected');
+                    }
+                });
+            }
+
+            showStatus('Predictions accepted! Review and click Save.', 'success');
         }
 
         function selectEnergy(energy) {
@@ -401,10 +618,12 @@
                 if (result.success) {
                     showStatus('Label saved!', 'success');
 
-                    // Update progress
-                    document.getElementById('labeled-count').textContent = result.labeled_count;
-                    const percent = ((result.labeled_count / audioFiles.length) * 100).toFixed(1);
-                    document.getElementById('progress-percent').textContent = percent + '%';
+                    // Update progress - both current batch and total
+                    document.getElementById('current-batch-labeled').textContent = result.current_batch_labeled;
+                    const batchPercent = ((result.current_batch_labeled / audioFiles.length) * 100).toFixed(1);
+                    document.getElementById('current-batch-percent').textContent = batchPercent + '%';
+
+                    document.getElementById('total-labeled').textContent = result.labeled_count;
 
                     // Auto-advance to next track
                     setTimeout(() => {
@@ -432,6 +651,7 @@
 
             // Update audio player
             document.getElementById('track-name').textContent = track.title;
+            document.getElementById('current-track').textContent = currentIndex + 1;
             const audioPlayer = document.getElementById('audio-player');
             const audioSource = document.getElementById('audio-source');
             audioSource.src = `/audio/${currentIndex}`;
@@ -484,7 +704,7 @@
                 selectEnergy(energyLabels[9]);
             }
 
-            // Vibe selection (home row: asdfghjkl for first 10, then xcvbnm for remaining)
+            // Vibe selection (home row: asdfghjkl for first 9, then xcvbnm for remaining)
             const vibeLabels = {{ vibe_labels | tojson }};
             const key = e.key.toLowerCase();
 
@@ -495,13 +715,13 @@
 
             const homePos = homeRowKeys.indexOf(key);
             if (homePos >= 0) {
-                // asdfghjkl maps to indices 0-9
+                // asdfghjkl maps to indices 0-8
                 vibeIndex = homePos;
             } else {
                 const bottomPos = bottomRowKeys.indexOf(key);
                 if (bottomPos >= 0) {
-                    // xcvbnm maps to indices 10-15
-                    vibeIndex = 10 + bottomPos;
+                    // xcvbnm maps to indices 9-14
+                    vibeIndex = 9 + bottomPos;
                 }
             }
 

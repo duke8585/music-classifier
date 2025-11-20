@@ -120,9 +120,7 @@ def index():
 
     # Calculate current batch labeled count
     # (how many tracks from current sample_tracks.json are in manual_labels.json)
-    current_batch_labeled = sum(
-        1 for track in audio_files if track["filename"] in labels
-    )
+    current_batch_labeled = sum(1 for track in audio_files if track["filename"] in labels)
 
     return render_template(
         "label.html",
@@ -182,15 +180,15 @@ def save_label():
 
     # Calculate current batch labeled count
     audio_files = get_audio_files()
-    current_batch_labeled = sum(
-        1 for track in audio_files if track["filename"] in labels
-    )
+    current_batch_labeled = sum(1 for track in audio_files if track["filename"] in labels)
 
-    return jsonify({
-        "success": True,
-        "labeled_count": len(labels),
-        "current_batch_labeled": current_batch_labeled
-    })
+    return jsonify(
+        {
+            "success": True,
+            "labeled_count": len(labels),
+            "current_batch_labeled": current_batch_labeled,
+        }
+    )
 
 
 @app.route("/get_label/<path:filename>")

@@ -83,3 +83,4 @@ htmlcov/
 *.tmp
 *.bak
 *.backup_*
+data/manual_labels/manual_labels.json

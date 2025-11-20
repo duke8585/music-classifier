@@ -2,6 +2,7 @@
 Train classification models for energy and vibe prediction.
 """
 
+import argparse
 import json
 import os
 import sys
@@ -11,7 +12,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, f1_score
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MultiLabelBinarizer, StandardScaler
+from sklearn.preprocessing import LabelEncoder, MultiLabelBinarizer, StandardScaler
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from config.config import (
@@ -37,12 +38,14 @@ except ImportError:
 class ModelTrainer:
     """Train and evaluate classification models."""
 
-    def __init__(self):
+    def __init__(self, features_file=None):
         self.energy_model = None
         self.vibe_model = None
         self.scaler = None
         self.mlb = None  # MultiLabelBinarizer for vibes
+        self.energy_encoder = None  # LabelEncoder for energy labels
         self.feature_names = None
+        self.features_file = features_file
 
     def load_training_data(self):
         """
@@ -54,12 +57,15 @@ class ModelTrainer:
             y_vibes: Vibe labels (multi-label)
             track_ids: Track identifiers
         """
-        features_path = os.path.join(FEATURES_DIR, "training_features.json")
+        if self.features_file:
+            features_path = self.features_file
+        else:
+            features_path = os.path.join(FEATURES_DIR, "training_features.json")
 
         if not os.path.exists(features_path):
             raise FileNotFoundError(f"Training features not found: {features_path}")
 
-        with open(features_path, "r") as f:
+        with open(features_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         if not data:
@@ -100,8 +106,36 @@ class ModelTrainer:
         """
         print("\n=== Training Energy Classifier ===")
 
-        # Try XGBoost first, fall back to Random Forest
-        if XGBOOST_AVAILABLE:
+        # Encode labels to ensure they're consecutive integers starting from 0
+        self.energy_encoder = LabelEncoder()
+        self.energy_encoder.fit(ENERGY_LABELS)  # Fit on all possible labels
+        y_train_encoded = self.energy_encoder.transform(y_train)
+        y_test_encoded = self.energy_encoder.transform(y_test)
+
+        label_mapping = dict(
+            zip(
+                self.energy_encoder.classes_,
+                self.energy_encoder.transform(self.energy_encoder.classes_),
+            )
+        )
+        print(f"Label mapping: {label_mapping}")
+
+        # Check label diversity in training set
+        unique_train_labels = np.unique(y_train_encoded)
+        n_train_classes = len(unique_train_labels)
+
+        unique_label_names = self.energy_encoder.inverse_transform(unique_train_labels)
+        print(f"Training set has {n_train_classes} unique classes: {unique_label_names}")
+
+        # Use Random Forest for small/imbalanced datasets, XGBoost for larger ones
+        use_rf = n_train_classes == 1 or len(y_train) < 20
+
+        if use_rf:
+            print("Using Random Forest Classifier (small/imbalanced dataset)")
+            model = RandomForestClassifier(
+                n_estimators=N_ESTIMATORS, max_depth=MAX_DEPTH, random_state=RANDOM_STATE, n_jobs=-1
+            )
+        elif XGBOOST_AVAILABLE:
             print("Using XGBoost Classifier")
             model = xgb.XGBClassifier(
                 n_estimators=N_ESTIMATORS,
@@ -117,14 +151,30 @@ class ModelTrainer:
             )
 
         # Train
-        model.fit(X_train, y_train)
+        model.fit(X_train, y_train_encoded)
 
         # Evaluate
-        y_pred = model.predict(X_test)
+        y_pred_encoded = model.predict(X_test)
 
-        accuracy = accuracy_score(y_test, y_pred)
-        f1_macro = f1_score(y_test, y_pred, average="macro")
-        f1_weighted = f1_score(y_test, y_pred, average="weighted")
+        accuracy = accuracy_score(y_test_encoded, y_pred_encoded)
+
+        # Get unique labels present in test set for proper F1 calculation
+        unique_labels_encoded = np.unique(np.concatenate([y_test_encoded, y_pred_encoded]))
+
+        f1_macro = f1_score(
+            y_test_encoded,
+            y_pred_encoded,
+            average="macro",
+            labels=unique_labels_encoded,
+            zero_division=0,
+        )
+        f1_weighted = f1_score(
+            y_test_encoded,
+            y_pred_encoded,
+            average="weighted",
+            labels=unique_labels_encoded,
+            zero_division=0,
+        )
 
         print("\nEnergy Classifier Performance:")
         print(f"Accuracy: {accuracy:.3f}")
@@ -132,7 +182,17 @@ class ModelTrainer:
         print(f"F1 (weighted): {f1_weighted:.3f}")
 
         print("\nClassification Report:")
-        print(classification_report(y_test, y_pred, target_names=ENERGY_LABELS, zero_division=0))
+        # Decode labels for display
+        present_label_names = self.energy_encoder.inverse_transform(unique_labels_encoded)
+        print(
+            classification_report(
+                y_test_encoded,
+                y_pred_encoded,
+                labels=unique_labels_encoded,
+                target_names=present_label_names,
+                zero_division=0,
+            )
+        )
 
         # Feature importance
         if hasattr(model, "feature_importances_"):
@@ -164,11 +224,20 @@ class ModelTrainer:
 
         print(f"Vibe classes: {self.mlb.classes_}")
 
-        # Train one classifier per vibe (One-vs-Rest approach)
-        if XGBOOST_AVAILABLE:
-            print("Using XGBoost Classifier")
-            from sklearn.multioutput import MultiOutputClassifier
+        # Check dataset size
+        use_rf = len(y_train) < 20
 
+        # Train one classifier per vibe (One-vs-Rest approach)
+        from sklearn.multioutput import MultiOutputClassifier
+
+        if use_rf:
+            print("Using Random Forest Classifier (small dataset)")
+            base_model = RandomForestClassifier(
+                n_estimators=N_ESTIMATORS, max_depth=MAX_DEPTH, random_state=RANDOM_STATE
+            )
+            model = MultiOutputClassifier(base_model, n_jobs=-1)
+        elif XGBOOST_AVAILABLE:
+            print("Using XGBoost Classifier")
             base_model = xgb.XGBClassifier(
                 n_estimators=N_ESTIMATORS,
                 max_depth=MAX_DEPTH,
@@ -179,8 +248,6 @@ class ModelTrainer:
             model = MultiOutputClassifier(base_model, n_jobs=-1)
         else:
             print("Using Random Forest Classifier")
-            from sklearn.multioutput import MultiOutputClassifier
-
             base_model = RandomForestClassifier(
                 n_estimators=N_ESTIMATORS, max_depth=MAX_DEPTH, random_state=RANDOM_STATE
             )
@@ -280,6 +347,7 @@ class ModelTrainer:
         joblib.dump(self.vibe_model, os.path.join(MODELS_DIR, "vibe_model.pkl"))
         joblib.dump(self.scaler, os.path.join(MODELS_DIR, "scaler.pkl"))
         joblib.dump(self.mlb, os.path.join(MODELS_DIR, "mlb.pkl"))
+        joblib.dump(self.energy_encoder, os.path.join(MODELS_DIR, "energy_encoder.pkl"))
 
         # Save metadata
         metadata = {
@@ -288,14 +356,24 @@ class ModelTrainer:
             "vibe_labels": VIBE_LABELS,
         }
 
-        with open(os.path.join(MODELS_DIR, "metadata.json"), "w") as f:
+        with open(os.path.join(MODELS_DIR, "metadata.json"), "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)
 
         print(f"\nModels saved to {MODELS_DIR}")
 
 
 def main():
-    trainer = ModelTrainer()
+    parser = argparse.ArgumentParser(description="Train energy and vibe classification models")
+    parser.add_argument(
+        "--features-file",
+        type=str,
+        default=None,
+        help="Path to training features JSON file (default: data/features/training_features.json)",
+    )
+
+    args = parser.parse_args()
+
+    trainer = ModelTrainer(features_file=args.features_file)
     trainer.train()
 
 

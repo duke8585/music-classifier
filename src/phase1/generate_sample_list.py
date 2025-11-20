@@ -47,7 +47,6 @@ def backup_existing_sample():
         return
 
     # Find existing backup files with pattern sample_tracks.bak.N.json
-    backup_pattern = OUTPUT_FILE.parent / "sample_tracks.bak.*.json"
     existing_backups = list(OUTPUT_FILE.parent.glob("sample_tracks.bak.*.json"))
 
     # Extract backup numbers and find the max

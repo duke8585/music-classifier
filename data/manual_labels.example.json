@@ -1,0 +1,28 @@
+{
+  "track_001": {
+    "energy": "peak",
+    "vibe": ["dark", "hypnotic"],
+    "audio_path": "/path/to/your/tracks/track_001.mp3",
+    "notes": "Optional: Add notes about why you labeled it this way"
+  },
+  "track_002": {
+    "energy": "building",
+    "vibe": ["melodic", "atmospheric"],
+    "audio_path": "/path/to/your/tracks/track_002.mp3"
+  },
+  "track_003": {
+    "energy": "warm-up",
+    "vibe": ["dubby", "analog/lofi"],
+    "audio_path": "/path/to/your/tracks/track_003.mp3"
+  },
+  "track_004": {
+    "energy": "intense",
+    "vibe": ["dark"],
+    "audio_path": "/path/to/your/tracks/track_004.mp3"
+  },
+  "track_005": {
+    "energy": "closing",
+    "vibe": ["atmospheric", "trippy"],
+    "audio_path": "/path/to/your/tracks/track_005.mp3"
+  }
+}

@@ -1,0 +1,5 @@
+numpy>=1.21.0
+scikit-learn>=1.0.0
+essentia>=2.1b6.dev1034
+librosa>=0.9.0
+joblib>=1.1.0

@@ -1,0 +1,64 @@
+# Audio files
+*.mp3
+*.wav
+*.flac
+*.ogg
+*.m4a
+*.aac
+
+# Models
+models/*.joblib
+models/*.pkl
+models/*.h5
+
+# Data
+data/manual_labels.json
+data/*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Keep example files
+!data/manual_labels.example.json

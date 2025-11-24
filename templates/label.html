@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Labeling Tool - RELABEL v2.0</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 15px;
+            line-height: 1.4;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #333;
+        }
+
+        h1 {
+            color: #4a9eff;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+
+        .progress {
+            font-size: 14px;
+            color: #888;
+        }
+
+        .progress strong {
+            color: #4a9eff;
+        }
+
+        .player-section {
+            background: #252525;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .track-info {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .track-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #4a9eff;
+            margin-bottom: 6px;
+        }
+
+        audio {
+            width: 100%;
+            margin-bottom: 10px;
+            height: 32px;
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .player-controls label {
+            font-size: 13px;
+        }
+
+        .player-controls input[type="range"] {
+            width: 150px;
+        }
+
+        .player-controls #speed-display {
+            font-size: 13px;
+            min-width: 50px;
+        }
+
+        .navigation {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .nav-btn {
+            padding: 6px 15px;
+            font-size: 13px;
+            background: #333;
+            color: #e0e0e0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #444;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .current-labels-box {
+            margin-top: 10px;
+            padding: 10px;
+            background: #1e1e1e;
+            border-radius: 6px;
+            display: none;
+            font-size: 12px;
+        }
+
+        .current-labels-box .label-title {
+            color: #888;
+            margin-bottom: 6px;
+        }
+
+        .current-labels-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .current-labels-grid div {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .current-labels-grid .dim-label {
+            color: #888;
+            font-size: 10px;
+            margin-bottom: 2px;
+        }
+
+        .current-labels-grid .dim-value {
+            color: #4a9eff;
+            font-weight: 600;
+        }
+
+        .labeling-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .label-group {
+            background: #252525;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .label-group h2 {
+            color: #4a9eff;
+            margin-bottom: 8px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .dimension-hint {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+
+        .radio-options {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            background: #1e1e1e;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .radio-option:hover {
+            background: #2a2a2a;
+            border-color: #4a9eff;
+        }
+
+        .radio-option input[type="radio"] {
+            margin: 0;
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            accent-color: #4a9eff;
+        }
+
+        .radio-option.selected {
+            background: #2a4a6a;
+            border-color: #4a9eff;
+        }
+
+        .hotkey {
+            display: inline-block;
+            min-width: 20px;
+            padding: 2px 6px;
+            margin: 0 8px;
+            background: #333;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #aaa;
+            font-family: monospace;
+            text-align: center;
+        }
+
+        .radio-option.selected .hotkey {
+            background: #4a9eff;
+            color: #fff;
+        }
+
+        .radio-label {
+            flex: 1;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .label-name {
+            font-weight: 600;
+            color: #e0e0e0;
+            min-width: 80px;
+        }
+
+        .label-desc {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .save-section {
+            text-align: center;
+            background: #252525;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .save-btn {
+            padding: 10px 30px;
+            font-size: 16px;
+            background: #4a9eff;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .save-btn:hover {
+            background: #3a8eef;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(74, 158, 255, 0.4);
+        }
+
+        .save-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .skip-btn {
+            padding: 10px 25px;
+            font-size: 14px;
+            background: #444;
+            color: #ccc;
+            border: 2px solid #555;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .skip-btn:hover {
+            background: #555;
+            border-color: #666;
+        }
+
+        .keyboard-shortcut-inline {
+            display: inline-block;
+            padding: 2px 6px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 3px;
+            font-size: 11px;
+            color: #aaa;
+            margin-left: 6px;
+            font-family: monospace;
+        }
+
+        .status-message {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #2d5a2d;
+            color: #7cf07c;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #5a2d2d;
+            color: #f07c7c;
+            display: block;
+        }
+
+        .keyboard-hint {
+            margin-top: 8px;
+            text-align: center;
+            color: #666;
+            font-size: 11px;
+        }
+
+        @media (max-width: 1200px) {
+            .labeling-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Music Labeling Tool - RELABEL v2.0</h1>
+            <div class="progress">
+                Current batch: <strong id="current-batch-labeled">{{ current_batch_labeled }}</strong> / {{ total_files }} labeled
+                (<span id="current-batch-percent">{{ (current_batch_labeled / total_files * 100) | round(1) if total_files > 0 else 0 }}%</span>) |
+                Total: <strong id="total-labeled">{{ labeled_count }}</strong> tracks
+            </div>
+        </header>
+
+        <div class="player-section">
+            <div class="track-info">
+                <div class="track-name" id="track-name">
+                    {% if audio_files %}{{ audio_files[current_index]['title'] }}{% else %}No tracks found{% endif %}
+                </div>
+                <div style="color: #888; font-size: 13px;" id="track-position">
+                    Track <span id="current-track">{{ current_index + 1 }}</span> of {{ audio_files | length }}
+                </div>
+                <div id="current-labels" class="current-labels-box">
+                    <div class="label-title">Previously labeled as:</div>
+                    <div class="current-labels-grid">
+                        <div>
+                            <span class="dim-label">Energy:</span>
+                            <span id="current-energy" class="dim-value"></span>
+                        </div>
+                        <div>
+                            <span class="dim-label">Bass Weight:</span>
+                            <span id="current-bass" class="dim-value"></span>
+                        </div>
+                        <div>
+                            <span class="dim-label">Rhythm:</span>
+                            <span id="current-rhythm" class="dim-value"></span>
+                        </div>
+                        <div>
+                            <span class="dim-label">Vibe:</span>
+                            <span id="current-vibe" class="dim-value"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if audio_files %}
+            <audio id="audio-player" controls preload="auto">
+                <source id="audio-source" src="/audio/{{ current_index }}">
+                Your browser does not support the audio element.
+            </audio>
+
+            <div class="player-controls">
+                <label>Speed:</label>
+                <input type="range" id="speed-slider" min="0.9" max="1.1" step="0.01" value="1.0"
+                       oninput="updatePlaybackSpeed(this.value)">
+                <span id="speed-display">1.00x</span>
+            </div>
+
+            <div class="navigation">
+                <button class="nav-btn" id="prev-btn" onclick="navigateTrack(-1)">← Prev</button>
+                <button class="nav-btn" onclick="location.reload()">Refresh</button>
+                <button class="nav-btn" id="next-btn" onclick="navigateTrack(1)">Next →</button>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="labeling-section">
+            <div class="label-group">
+                <h2>1. Energy (Set Position)</h2>
+                <div class="dimension-hint">When in your set would you play this?</div>
+                <div class="radio-options" id="energy-options">
+                    {% set energy_keys = ['1', '2', '3'] %}
+                    {% set energy_descs = ['Low intensity, BPM < 100', 'Main groove, BPM 110-125', 'Peak energy, BPM 125+'] %}
+                    {% for energy in energy_labels %}
+                    <label class="radio-option" data-value="{{ energy }}">
+                        <input type="radio" name="energy" value="{{ energy }}" onchange="selectDimension('energy', '{{ energy }}')">
+                        <span class="hotkey">{{ energy_keys[loop.index0] }}</span>
+                        <span class="radio-label">
+                            <span class="label-name">{{ energy | title }}</span>
+                            <span class="label-desc">{{ energy_descs[loop.index0] }}</span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="label-group">
+                <h2>2. Bass Weight (Low-End)</h2>
+                <div class="dimension-hint">Do you feel the bass in your chest?</div>
+                <div class="radio-options" id="bass-options">
+                    {% set bass_keys = ['Q', 'W', 'E'] %}
+                    {% set bass_descs = ['Minimal sub-bass, airy', 'Even frequency balance', 'Sub-bass dominant, chest-thumping'] %}
+                    {% for bass in bass_labels %}
+                    <label class="radio-option" data-value="{{ bass }}">
+                        <input type="radio" name="bass" value="{{ bass }}" onchange="selectDimension('bass', '{{ bass }}')">
+                        <span class="hotkey">{{ bass_keys[loop.index0] }}</span>
+                        <span class="radio-label">
+                            <span class="label-name">{{ bass | title }}</span>
+                            <span class="label-desc">{{ bass_descs[loop.index0] }}</span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="label-group">
+                <h2>3. Rhythm (Drum Pattern)</h2>
+                <div class="dimension-hint">What's the drum pattern like?</div>
+                <div class="radio-options" id="rhythm-options">
+                    {% set rhythm_keys = ['A', 'S', 'D'] %}
+                    {% set rhythm_descs = ['4/4 kick, steady', 'Breakbeat, syncopated', 'Minimal percussion, < 10 hits/bar'] %}
+                    {% for rhythm in rhythm_labels %}
+                    <label class="radio-option" data-value="{{ rhythm }}">
+                        <input type="radio" name="rhythm" value="{{ rhythm }}" onchange="selectDimension('rhythm', '{{ rhythm }}')">
+                        <span class="hotkey">{{ rhythm_keys[loop.index0] }}</span>
+                        <span class="radio-label">
+                            <span class="label-name">{{ rhythm | title }}</span>
+                            <span class="label-desc">{{ rhythm_descs[loop.index0] }}</span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="label-group">
+                <h2>4. Vibe (Texture & Space)</h2>
+                <div class="dimension-hint">What's the overall vibe/texture?</div>
+                <div class="radio-options" id="vibe-options">
+                    {% set vibe_keys = ['Y', 'X', 'C'] %}
+                    {% set vibe_descs = ['Repetitive loops, minimal evolution', 'Clear melodies & chord progressions', 'Spacious, reverb-heavy, dubby'] %}
+                    {% for vibe in vibe_labels %}
+                    <label class="radio-option" data-value="{{ vibe }}">
+                        <input type="radio" name="vibe" value="{{ vibe }}" onchange="selectDimension('vibe', '{{ vibe }}')">
+                        <span class="hotkey">{{ vibe_keys[loop.index0] }}</span>
+                        <span class="radio-label">
+                            <span class="label-name">{{ vibe | title }}</span>
+                            <span class="label-desc">{{ vibe_descs[loop.index0] }}</span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="save-section">
+            <div class="button-row">
+                <button class="save-btn" id="save-btn" onclick="saveLabel()">
+                    Save & Next <span class="keyboard-shortcut-inline">Enter</span>
+                </button>
+                <button class="skip-btn" id="skip-btn" onclick="skipTrack()">
+                    Skip <span class="keyboard-shortcut-inline">Esc</span>
+                </button>
+            </div>
+            <div class="status-message" id="status-message"></div>
+            <div class="keyboard-hint">
+                Energy: 1-3 | Bass: Q/W/E | Rhythm: A/S/D | Vibe: Y/X/C | Seek: J/L (±15s) | Navigate: ← → | Play/Pause: Space
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const audioFiles = {{ audio_files | tojson }};
+        let currentIndex = {{ current_index }};
+
+        // Dimension values
+        const energyLabels = {{ energy_labels | tojson }};
+        const bassLabels = {{ bass_labels | tojson }};
+        const rhythmLabels = {{ rhythm_labels | tojson }};
+        const vibeLabels = {{ vibe_labels | tojson }};
+
+        // Selected values
+        let selectedEnergy = null;
+        let selectedBass = null;
+        let selectedRhythm = null;
+        let selectedVibe = null;
+
+        function updatePlaybackSpeed(speed) {
+            const audio = document.getElementById('audio-player');
+            audio.playbackRate = parseFloat(speed);
+            document.getElementById('speed-display').textContent = parseFloat(speed).toFixed(2) + 'x';
+        }
+
+        function selectDimension(dimension, value) {
+            // Update selected value
+            if (dimension === 'energy') selectedEnergy = value;
+            else if (dimension === 'bass') selectedBass = value;
+            else if (dimension === 'rhythm') selectedRhythm = value;
+            else if (dimension === 'vibe') selectedVibe = value;
+
+            // Update visual state
+            const container = document.getElementById(`${dimension}-options`);
+            container.querySelectorAll('.radio-option').forEach(option => {
+                if (option.dataset.value === value) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+            });
+
+            console.log(`Selected ${dimension}: ${value}`);
+        }
+
+        // Load existing labels for current track
+        async function loadCurrentLabel() {
+            const filename = audioFiles[currentIndex].filename;
+
+            // Load manual label
+            const labelResponse = await fetch(`/get_label/${encodeURIComponent(filename)}`);
+            const label = await labelResponse.json();
+
+            // Reset selections
+            selectedEnergy = null;
+            selectedBass = null;
+            selectedRhythm = null;
+            selectedVibe = null;
+
+            // Clear all radio buttons and visual states
+            document.querySelectorAll('input[type="radio"]').forEach(radio => radio.checked = false);
+            document.querySelectorAll('.radio-option').forEach(option => option.classList.remove('selected'));
+
+            // Show/hide existing labels display
+            const currentLabelsDiv = document.getElementById('current-labels');
+            const hasLabels = label.energy || label.bass_weight || label.rhythm || label.vibe;
+
+            if (hasLabels) {
+                currentLabelsDiv.style.display = 'block';
+                document.getElementById('current-energy').textContent = label.energy || 'none';
+                document.getElementById('current-bass').textContent = label.bass_weight || 'none';
+                document.getElementById('current-rhythm').textContent = label.rhythm || 'none';
+                document.getElementById('current-vibe').textContent = label.vibe || 'none';
+
+                // Pre-fill radio buttons with existing labels
+                if (label.energy) {
+                    selectedEnergy = label.energy;
+                    const radio = document.querySelector(`input[name="energy"][value="${label.energy}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                        radio.closest('.radio-option').classList.add('selected');
+                    }
+                }
+                if (label.bass_weight) {
+                    selectedBass = label.bass_weight;
+                    const radio = document.querySelector(`input[name="bass"][value="${label.bass_weight}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                        radio.closest('.radio-option').classList.add('selected');
+                    }
+                }
+                if (label.rhythm) {
+                    selectedRhythm = label.rhythm;
+                    const radio = document.querySelector(`input[name="rhythm"][value="${label.rhythm}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                        radio.closest('.radio-option').classList.add('selected');
+                    }
+                }
+                if (label.vibe) {
+                    selectedVibe = label.vibe;
+                    const radio = document.querySelector(`input[name="vibe"][value="${label.vibe}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                        radio.closest('.radio-option').classList.add('selected');
+                    }
+                }
+            } else {
+                currentLabelsDiv.style.display = 'none';
+            }
+        }
+
+        async function saveLabel() {
+            // Validation
+            if (!selectedEnergy || !selectedBass || !selectedRhythm || !selectedVibe) {
+                showStatus('Please select all 4 dimensions', 'error');
+                return;
+            }
+
+            const track = audioFiles[currentIndex];
+            const saveBtn = document.getElementById('save-btn');
+            saveBtn.disabled = true;
+
+            try {
+                const response = await fetch('/save_label', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        filename: track.filename,
+                        energy: selectedEnergy,
+                        bass_weight: selectedBass,
+                        rhythm: selectedRhythm,
+                        vibe: selectedVibe
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStatus('Label saved!', 'success');
+
+                    // Update progress
+                    document.getElementById('current-batch-labeled').textContent = result.current_batch_labeled;
+                    const batchPercent = ((result.current_batch_labeled / audioFiles.length) * 100).toFixed(1);
+                    document.getElementById('current-batch-percent').textContent = batchPercent + '%';
+                    document.getElementById('total-labeled').textContent = result.labeled_count;
+
+                    // Auto-advance to next track
+                    setTimeout(() => {
+                        navigateTrack(1);
+                    }, 500);
+                } else {
+                    showStatus('Error saving label', 'error');
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+
+        function skipTrack() {
+            showStatus('Track skipped (not labeled)', 'success');
+            setTimeout(() => {
+                navigateTrack(1);
+            }, 500);
+        }
+
+        function navigateTrack(direction) {
+            const newIndex = currentIndex + direction;
+
+            if (newIndex < 0 || newIndex >= audioFiles.length) {
+                return;
+            }
+
+            currentIndex = newIndex;
+            const track = audioFiles[currentIndex];
+
+            // Update audio player
+            document.getElementById('track-name').textContent = track.title;
+            document.getElementById('current-track').textContent = currentIndex + 1;
+            const audioPlayer = document.getElementById('audio-player');
+            const audioSource = document.getElementById('audio-source');
+            audioSource.src = `/audio/${currentIndex}`;
+            audioPlayer.load();
+
+            // Autoplay new track
+            audioPlayer.play().catch(e => {
+                console.log('Autoplay prevented:', e);
+            });
+
+            // Update navigation buttons
+            document.getElementById('prev-btn').disabled = (currentIndex === 0);
+            document.getElementById('next-btn').disabled = (currentIndex === audioFiles.length - 1);
+
+            // Load labels for this track
+            loadCurrentLabel();
+
+            // Hide status message
+            document.getElementById('status-message').style.display = 'none';
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status-message');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            statusEl.style.display = 'block';
+
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 2000);
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger if user is typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                return;
+            }
+
+            const key = e.key.toLowerCase();
+
+            // Energy selection (1-3)
+            if (key === '1' && energyLabels.length >= 1) {
+                const radio = document.querySelector(`input[name="energy"][value="${energyLabels[0]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('energy', energyLabels[0]);
+                }
+            } else if (key === '2' && energyLabels.length >= 2) {
+                const radio = document.querySelector(`input[name="energy"][value="${energyLabels[1]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('energy', energyLabels[1]);
+                }
+            } else if (key === '3' && energyLabels.length >= 3) {
+                const radio = document.querySelector(`input[name="energy"][value="${energyLabels[2]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('energy', energyLabels[2]);
+                }
+            }
+
+            // Bass weight selection (Q/W/E)
+            if (key === 'q' && bassLabels.length >= 1) {
+                const radio = document.querySelector(`input[name="bass"][value="${bassLabels[0]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('bass', bassLabels[0]);
+                }
+            } else if (key === 'w' && bassLabels.length >= 2) {
+                const radio = document.querySelector(`input[name="bass"][value="${bassLabels[1]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('bass', bassLabels[1]);
+                }
+            } else if (key === 'e' && bassLabels.length >= 3) {
+                const radio = document.querySelector(`input[name="bass"][value="${bassLabels[2]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('bass', bassLabels[2]);
+                }
+            }
+
+            // Rhythm selection (A/S/D)
+            if (key === 'a' && rhythmLabels.length >= 1) {
+                const radio = document.querySelector(`input[name="rhythm"][value="${rhythmLabels[0]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('rhythm', rhythmLabels[0]);
+                }
+            } else if (key === 's' && rhythmLabels.length >= 2) {
+                const radio = document.querySelector(`input[name="rhythm"][value="${rhythmLabels[1]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('rhythm', rhythmLabels[1]);
+                }
+            } else if (key === 'd' && rhythmLabels.length >= 3) {
+                const radio = document.querySelector(`input[name="rhythm"][value="${rhythmLabels[2]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('rhythm', rhythmLabels[2]);
+                }
+            }
+
+            // Vibe selection (Y/X/C)
+            if (key === 'y' && vibeLabels.length >= 1) {
+                const radio = document.querySelector(`input[name="vibe"][value="${vibeLabels[0]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('vibe', vibeLabels[0]);
+                }
+            } else if (key === 'x' && vibeLabels.length >= 2) {
+                const radio = document.querySelector(`input[name="vibe"][value="${vibeLabels[1]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('vibe', vibeLabels[1]);
+                }
+            } else if (key === 'c' && vibeLabels.length >= 3) {
+                const radio = document.querySelector(`input[name="vibe"][value="${vibeLabels[2]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    selectDimension('vibe', vibeLabels[2]);
+                }
+            }
+
+            // Enter to save
+            if (e.key === 'Enter') {
+                saveLabel();
+            }
+
+            // Escape to skip
+            if (e.key === 'Escape') {
+                skipTrack();
+            }
+
+            // Arrow keys for navigation
+            if (e.key === 'ArrowLeft') {
+                navigateTrack(-1);
+            }
+            if (e.key === 'ArrowRight') {
+                navigateTrack(1);
+            }
+
+            // Space to play/pause
+            if (e.key === ' ' && e.target === document.body) {
+                e.preventDefault();
+                const audio = document.getElementById('audio-player');
+                if (audio.paused) {
+                    audio.play();
+                } else {
+                    audio.pause();
+                }
+            }
+
+            // J to seek backward 15 seconds
+            if (key === 'j') {
+                const audio = document.getElementById('audio-player');
+                audio.currentTime = Math.max(0, audio.currentTime - 15);
+            }
+
+            // L to seek forward 15 seconds
+            if (key === 'l') {
+                const audio = document.getElementById('audio-player');
+                audio.currentTime = Math.min(audio.duration, audio.currentTime + 15);
+            }
+        });
+
+        // Initialize
+        window.addEventListener('load', () => {
+            loadCurrentLabel();
+            document.getElementById('prev-btn').disabled = (currentIndex === 0);
+            document.getElementById('next-btn').disabled = (currentIndex === audioFiles.length - 1);
+
+            // Add audio error handler
+            const audio = document.getElementById('audio-player');
+            audio.addEventListener('error', (e) => {
+                console.error('Audio error:', e);
+                showStatus('Audio playback error. AIFF may not be supported in this browser. Try Safari.', 'error');
+            });
+
+            // Autoplay first track when page loads
+            if (audioFiles && audioFiles.length > 0) {
+                // Try to play immediately if already loaded
+                const tryAutoplay = () => {
+                    audio.play().catch(e => {
+                        console.log('Autoplay prevented (will retry on user interaction):', e);
+                    });
+                };
+
+                // If audio is already ready, play immediately
+                if (audio.readyState >= 3) {
+                    tryAutoplay();
+                } else {
+                    // Otherwise wait for canplay event
+                    audio.addEventListener('canplay', tryAutoplay, { once: true });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

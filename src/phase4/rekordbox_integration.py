@@ -113,19 +113,18 @@ class RekordboxIntegration:
 
         return matches
 
-    def write_tags(self, predictions, my_tag_format="energy_vibes"):
+    def write_tags(self, predictions, my_tag_format="relabel_v2"):
         """
-        Write predictions to Rekordbox MyTag fields.
+        Write predictions to Rekordbox MyTag fields (RELABEL v2.0).
 
         Args:
             predictions: List of prediction dictionaries
             my_tag_format: Format for MyTag field
-                - 'energy_vibes': "peak | dark, hypnotic"
-                - 'energy_only': "peak"
-                - 'vibes_only': "dark, hypnotic"
-                - 'detailed': "E:peak(0.85) | V:dark,hypnotic"
+                - 'relabel_v2': "energy: mid | bass: heavy | rhythm: straight | vibe: atmospheric"
+                - 'compact': "mid|heavy|straight|atmospheric"
+                - 'detailed': "E:mid(0.75) | B:heavy(0.82) | R:straight(0.90) | V:atmospheric(0.68)"
         """
-        print("Writing tags to Rekordbox XML...")
+        print("Writing tags to Rekordbox XML (RELABEL v2.0)...")
 
         # Match predictions to tracks
         matches = self.match_predictions_to_tracks(predictions)
@@ -136,17 +135,30 @@ class RekordboxIntegration:
             track_element = self.tracks[track_id]["element"]
 
             # Generate tag text based on format
-            if my_tag_format == "energy_vibes":
-                tag_text = f"{pred['energy']} | {', '.join(pred['vibes'])}"
-            elif my_tag_format == "energy_only":
-                tag_text = pred["energy"]
-            elif my_tag_format == "vibes_only":
-                tag_text = ", ".join(pred["vibes"])
+            if my_tag_format == "relabel_v2":
+                tag_text = (
+                    f"energy: {pred['energy']} | "
+                    f"bass: {pred['bass_weight']} | "
+                    f"rhythm: {pred['rhythm']} | "
+                    f"vibe: {pred['vibe']}"
+                )
+            elif my_tag_format == "compact":
+                tag_text = f"{pred['energy']}|{pred['bass_weight']}|{pred['rhythm']}|{pred['vibe']}"
             elif my_tag_format == "detailed":
-                energy_conf = pred["energy_confidence"]
-                tag_text = f"E:{pred['energy']}({energy_conf:.2f}) | V:{','.join(pred['vibes'])}"
+                tag_text = (
+                    f"E:{pred['energy']}({pred['energy_confidence']:.2f}) | "
+                    f"B:{pred['bass_weight']}({pred['bass_weight_confidence']:.2f}) | "
+                    f"R:{pred['rhythm']}({pred['rhythm_confidence']:.2f}) | "
+                    f"V:{pred['vibe']}({pred['vibe_confidence']:.2f})"
+                )
             else:
-                tag_text = f"{pred['energy']} | {', '.join(pred['vibes'])}"
+                # Default to relabel_v2 format
+                tag_text = (
+                    f"energy: {pred['energy']} | "
+                    f"bass: {pred['bass_weight']} | "
+                    f"rhythm: {pred['rhythm']} | "
+                    f"vibe: {pred['vibe']}"
+                )
 
             # Set MyTag field (Comments field in some Rekordbox versions)
             # Rekordbox uses different fields depending on version

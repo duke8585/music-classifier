@@ -59,7 +59,11 @@ class FeatureExtractor:
         if len(rhythm_result) >= 5:
             bpm, beats, beats_confidence, _, beats_intervals = rhythm_result[:5]
         else:
-            bpm, beats, beats_confidence = rhythm_result[0], rhythm_result[1], rhythm_result[2] if len(rhythm_result) > 2 else 0.5
+            bpm, beats, beats_confidence = (
+                rhythm_result[0],
+                rhythm_result[1],
+                rhythm_result[2] if len(rhythm_result) > 2 else 0.5,
+            )
 
         # Ensure scalar values - extract from tuple/array if needed
         if isinstance(bpm, (tuple, list)):
@@ -68,11 +72,13 @@ class FeatureExtractor:
             features["bpm"] = float(bpm)
 
         if isinstance(beats_confidence, (tuple, list)):
-            features["beats_confidence"] = float(beats_confidence[0]) if len(beats_confidence) > 0 else 0.5
+            features["beats_confidence"] = (
+                float(beats_confidence[0]) if len(beats_confidence) > 0 else 0.5
+            )
         else:
             features["beats_confidence"] = float(beats_confidence)
 
-        features["num_beats"] = len(beats) if hasattr(beats, '__len__') else 0
+        features["num_beats"] = len(beats) if hasattr(beats, "__len__") else 0
 
         # Spectral features (important for vibe classification)
         spectrum = es.Spectrum()
@@ -107,15 +113,25 @@ class FeatureExtractor:
         dyn_complex_val = dynamic_complexity(audio)
 
         # Handle potential tuple returns
-        features["loudness"] = float(loudness_val[0]) if isinstance(loudness_val, (tuple, list)) else float(loudness_val)
-        features["dynamic_complexity"] = float(dyn_complex_val[0]) if isinstance(dyn_complex_val, (tuple, list)) else float(dyn_complex_val)
+        features["loudness"] = (
+            float(loudness_val[0])
+            if isinstance(loudness_val, (tuple, list))
+            else float(loudness_val)
+        )
+        features["dynamic_complexity"] = (
+            float(dyn_complex_val[0])
+            if isinstance(dyn_complex_val, (tuple, list))
+            else float(dyn_complex_val)
+        )
 
         # Tonal features
         try:
             key_extractor = es.KeyExtractor()
             key, scale, strength = key_extractor(audio)
             # Handle potential tuple return
-            features["key_strength"] = float(strength[0]) if isinstance(strength, (tuple, list)) else float(strength)
+            features["key_strength"] = (
+                float(strength[0]) if isinstance(strength, (tuple, list)) else float(strength)
+            )
         except Exception:
             features["key_strength"] = 0.0
 
@@ -260,6 +276,17 @@ def extract_features_for_labeled_tracks():
             not_found.append(filename)
             continue
 
+        # Check if this is new format (4 dimensions) or old format (2 dimensions)
+        has_new_format = all(k in label_data for k in ["energy", "bass_weight", "rhythm", "vibe"])
+        has_old_format = "vibes" in label_data
+
+        if not has_new_format:
+            if has_old_format:
+                print(f"Warning: Skipping {filename} - old label format (needs RELABEL v2.0)")
+            else:
+                print(f"Warning: Skipping {filename} - incomplete labels")
+            continue
+
         features = extractor.extract_features(audio_path)
 
         if features:
@@ -268,7 +295,9 @@ def extract_features_for_labeled_tracks():
                     "track_id": filename,
                     "features": features,
                     "energy": label_data["energy"],
-                    "vibes": label_data["vibes"],
+                    "bass_weight": label_data["bass_weight"],
+                    "rhythm": label_data["rhythm"],
+                    "vibe": label_data["vibe"],
                 }
             )
 
@@ -277,7 +306,7 @@ def extract_features_for_labeled_tracks():
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(features_data, f, indent=2)
 
-    print(f"\nExtraction complete!")
+    print("\nExtraction complete!")
     print(f"Saved features for {len(features_data)} tracks to {output_path}")
 
     if not_found:

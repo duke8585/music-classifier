@@ -18,10 +18,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
 from config.config import (
+    BASS_WEIGHT_LABELS,
     ENERGY_LABELS,
     PREDICTION_AUTO_ACCEPT_ENERGY,
     PREDICTION_AUTO_ACCEPT_VIBE,
     PREDICTION_VIBE_THRESHOLD,
+    RHYTHM_LABELS,
     VIBE_LABELS,
 )
 
@@ -127,6 +129,8 @@ def index():
         audio_files=audio_files,
         current_index=current_index,
         energy_labels=ENERGY_LABELS,
+        bass_labels=BASS_WEIGHT_LABELS,
+        rhythm_labels=RHYTHM_LABELS,
         vibe_labels=VIBE_LABELS,
         labels=labels,
         total_files=len(audio_files),
@@ -169,13 +173,32 @@ def save_label():
     data = request.json
     filename = data.get("filename")
     energy = data.get("energy")
-    vibes = data.get("vibes", [])
+    bass_weight = data.get("bass_weight")
+    rhythm = data.get("rhythm")
+    vibe = data.get("vibe")
+
+    # Support legacy format for backwards compatibility
+    vibes = data.get("vibes")
 
     if not filename:
         return jsonify({"error": "No filename provided"}), 400
 
     labels = load_labels()
-    labels[filename] = {"energy": energy, "vibes": vibes}
+
+    # New format (RELABEL v2.0): 4 dimensions, all single-select
+    if bass_weight is not None and rhythm is not None and vibe is not None:
+        labels[filename] = {
+            "energy": energy,
+            "bass_weight": bass_weight,
+            "rhythm": rhythm,
+            "vibe": vibe,
+        }
+    # Legacy format: energy + vibes (multi-select)
+    elif vibes is not None:
+        labels[filename] = {"energy": energy, "vibes": vibes}
+    else:
+        return jsonify({"error": "Invalid label format"}), 400
+
     save_labels(labels)
 
     # Calculate current batch labeled count

@@ -14,7 +14,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from config.config import DATA_DIR, FEATURES_DIR, MANUAL_LABELS_DIR, SAMPLE_RATE
 
 try:
+    import essentia
     import essentia.standard as es
+
+    # Set Essentia log level to ERROR to suppress warnings
+    essentia.log.infoActive = False
+    essentia.log.warningActive = False
+    essentia.log.errorActive = True
 
     ESSENTIA_AVAILABLE = True
 except ImportError:
@@ -59,7 +65,11 @@ class FeatureExtractor:
         if len(rhythm_result) >= 5:
             bpm, beats, beats_confidence, _, beats_intervals = rhythm_result[:5]
         else:
-            bpm, beats, beats_confidence = rhythm_result[0], rhythm_result[1], rhythm_result[2] if len(rhythm_result) > 2 else 0.5
+            bpm, beats, beats_confidence = (
+                rhythm_result[0],
+                rhythm_result[1],
+                rhythm_result[2] if len(rhythm_result) > 2 else 0.5,
+            )
 
         # Ensure scalar values - extract from tuple/array if needed
         if isinstance(bpm, (tuple, list)):
@@ -68,11 +78,13 @@ class FeatureExtractor:
             features["bpm"] = float(bpm)
 
         if isinstance(beats_confidence, (tuple, list)):
-            features["beats_confidence"] = float(beats_confidence[0]) if len(beats_confidence) > 0 else 0.5
+            features["beats_confidence"] = (
+                float(beats_confidence[0]) if len(beats_confidence) > 0 else 0.5
+            )
         else:
             features["beats_confidence"] = float(beats_confidence)
 
-        features["num_beats"] = len(beats) if hasattr(beats, '__len__') else 0
+        features["num_beats"] = len(beats) if hasattr(beats, "__len__") else 0
 
         # Spectral features (important for vibe classification)
         spectrum = es.Spectrum()
@@ -107,15 +119,25 @@ class FeatureExtractor:
         dyn_complex_val = dynamic_complexity(audio)
 
         # Handle potential tuple returns
-        features["loudness"] = float(loudness_val[0]) if isinstance(loudness_val, (tuple, list)) else float(loudness_val)
-        features["dynamic_complexity"] = float(dyn_complex_val[0]) if isinstance(dyn_complex_val, (tuple, list)) else float(dyn_complex_val)
+        features["loudness"] = (
+            float(loudness_val[0])
+            if isinstance(loudness_val, (tuple, list))
+            else float(loudness_val)
+        )
+        features["dynamic_complexity"] = (
+            float(dyn_complex_val[0])
+            if isinstance(dyn_complex_val, (tuple, list))
+            else float(dyn_complex_val)
+        )
 
         # Tonal features
         try:
             key_extractor = es.KeyExtractor()
             key, scale, strength = key_extractor(audio)
             # Handle potential tuple return
-            features["key_strength"] = float(strength[0]) if isinstance(strength, (tuple, list)) else float(strength)
+            features["key_strength"] = (
+                float(strength[0]) if isinstance(strength, (tuple, list)) else float(strength)
+            )
         except Exception:
             features["key_strength"] = 0.0
 
@@ -142,6 +164,106 @@ class FeatureExtractor:
 
         features["zcr_mean"] = float(np.mean(zcr_values))
         features["zcr_std"] = float(np.std(zcr_values))
+
+        # === ENHANCED FEATURES FOR ELECTRONIC MUSIC ===
+
+        # 1. Frequency Band Energy (for bass/deep detection)
+        # Using LowLevelSpectralExtractor for comprehensive spectral analysis
+        try:
+            llse = es.LowLevelSpectralExtractor()
+            llse_results = llse(audio)
+
+            # Extract energy bands: low (20-150Hz), mid-low (150-800Hz),
+            # mid-high (800-4kHz), high (4k-20kHz)
+            # These help distinguish deep/bass-heavy vs bright tracks
+            if len(llse_results) >= 5:
+                energyband_low = llse_results[4]  # spectral_energyband_low
+                energyband_mid_low = llse_results[5]  # spectral_energyband_middle_low
+                energyband_mid_high = llse_results[6]  # spectral_energyband_middle_high
+                energyband_high = llse_results[7]  # spectral_energyband_high
+
+                features["energyband_low_mean"] = float(np.mean(energyband_low))
+                features["energyband_low_std"] = float(np.std(energyband_low))
+                features["energyband_mid_low_mean"] = float(np.mean(energyband_mid_low))
+                features["energyband_mid_high_mean"] = float(np.mean(energyband_mid_high))
+                features["energyband_high_mean"] = float(np.mean(energyband_high))
+
+                # Bass ratio: low energy / (low + mid + high)
+                total_energy = (
+                    energyband_low + energyband_mid_low + energyband_mid_high + energyband_high
+                )
+                bass_ratio = np.mean(energyband_low / (total_energy + 1e-10))
+                features["bass_ratio"] = float(bass_ratio)
+
+            # Inharmonicity (distinguishes synthetic vs organic sounds)
+            if len(llse_results) >= 23:
+                inharmonicity = llse_results[22]
+                features["inharmonicity_mean"] = float(np.mean(inharmonicity))
+
+            # Pitch salience (for melodic content detection)
+            if len(llse_results) >= 9:
+                pitch_salience = llse_results[8]
+                features["pitch_salience_mean"] = float(np.mean(pitch_salience))
+                features["pitch_salience_std"] = float(np.std(pitch_salience))
+
+        except Exception:
+            # Silently set defaults if extraction fails
+            features["energyband_low_mean"] = 0.0
+            features["energyband_low_std"] = 0.0
+            features["energyband_mid_low_mean"] = 0.0
+            features["energyband_mid_high_mean"] = 0.0
+            features["energyband_high_mean"] = 0.0
+            features["bass_ratio"] = 0.0
+            features["inharmonicity_mean"] = 0.0
+            features["pitch_salience_mean"] = 0.0
+            features["pitch_salience_std"] = 0.0
+
+        # 2. Loop/Repetition Detection (for hypnotic quality)
+        try:
+            loop_bpm_estimator = es.LoopBpmEstimator()
+            loop_bpm_confidence = es.LoopBpmConfidence()
+
+            loop_bpm = loop_bpm_estimator(audio)
+            loop_confidence = loop_bpm_confidence(audio)
+
+            features["loop_bpm"] = float(loop_bpm)
+            features["loop_confidence"] = float(loop_confidence)
+
+        except Exception:
+            # Silently set defaults if loop detection fails
+            features["loop_bpm"] = 0.0
+            features["loop_confidence"] = 0.0
+
+        # 3. Spectral Contrast (differentiates harmonic vs percussive content)
+        try:
+            # Compute spectral contrast to help identify dubby/spacious tracks
+            # High contrast = peaks and valleys in spectrum (harmonic content)
+            # Low contrast = flat spectrum (noise/texture)
+            contrast_values = []
+            spectral_contrast = es.SpectralContrast()
+
+            for frame in es.FrameGenerator(audio, frameSize=2048, hopSize=1024):
+                spec = spectrum(w(frame))
+                contrast, _ = spectral_contrast(spec)
+                contrast_values.append(contrast)
+
+            contrast_values = np.array(contrast_values)
+            features["spectral_contrast_mean"] = float(np.mean(contrast_values))
+            features["spectral_contrast_std"] = float(np.std(contrast_values))
+
+        except Exception:
+            # Silently set defaults if spectral contrast fails
+            features["spectral_contrast_mean"] = 0.0
+            features["spectral_contrast_std"] = 0.0
+
+        # 4. Danceability (rhythm regularity, useful for energy classification)
+        try:
+            danceability = es.Danceability()
+            dance_score, _ = danceability(audio)
+            features["danceability"] = float(dance_score)
+        except Exception:
+            # Silently set defaults if danceability fails
+            features["danceability"] = 0.0
 
         return features
 
@@ -214,12 +336,15 @@ class FeatureExtractor:
             return None
 
 
-def extract_features_for_labeled_tracks():
+def extract_features_for_labeled_tracks(use_simplified=False):
     """
     Extract features for all manually labeled tracks.
     """
     # Load manual labels
-    labels_path = os.path.join(MANUAL_LABELS_DIR, "manual_labels.json")
+    if use_simplified:
+        labels_path = os.path.join(MANUAL_LABELS_DIR, "manual_labels_simplified.json")
+    else:
+        labels_path = os.path.join(MANUAL_LABELS_DIR, "manual_labels.json")
 
     if not os.path.exists(labels_path):
         print(f"Labels file not found: {labels_path}")
@@ -273,11 +398,15 @@ def extract_features_for_labeled_tracks():
             )
 
     # Save features
-    output_path = os.path.join(FEATURES_DIR, "training_features.json")
+    if use_simplified:
+        output_path = os.path.join(FEATURES_DIR, "training_features_simplified.json")
+    else:
+        output_path = os.path.join(FEATURES_DIR, "training_features.json")
+
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(features_data, f, indent=2)
 
-    print(f"\nExtraction complete!")
+    print("\nExtraction complete!")
     print(f"Saved features for {len(features_data)} tracks to {output_path}")
 
     if not_found:
@@ -286,4 +415,9 @@ def extract_features_for_labeled_tracks():
 
 
 if __name__ == "__main__":
-    extract_features_for_labeled_tracks()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--simplified", action="store_true", help="Use simplified taxonomy")
+    args = parser.parse_args()
+    extract_features_for_labeled_tracks(use_simplified=args.simplified)

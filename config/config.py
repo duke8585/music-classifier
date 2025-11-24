@@ -12,7 +12,7 @@ FEATURES_DIR = os.path.join(DATA_DIR, "features")
 MODELS_DIR = os.path.join(DATA_DIR, "models")
 PREDICTIONS_DIR = os.path.join(DATA_DIR, "predictions")
 
-# Taxonomy
+# Taxonomy (Original)
 ENERGY_LABELS = ["warm-up", "building", "peak", "intense", "closing"]
 VIBE_LABELS = [
     "deep",
@@ -26,6 +26,17 @@ VIBE_LABELS = [
     "analog/lofi",
     "clean/digital",
     "IGNORE THIS",
+]
+
+# Simplified Taxonomy
+ENERGY_LABELS_SIMPLIFIED = ["intro/outro", "low", "high", "intense"]
+VIBE_LABELS_SIMPLIFIED = [
+    "deep",
+    "melodic",
+    "hypnotic",
+    "dubby",
+    "breaks",
+    "percussive/lofi",
 ]
 
 # Training parameters

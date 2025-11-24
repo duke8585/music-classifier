@@ -17,6 +17,7 @@ from sklearn.preprocessing import LabelEncoder, MultiLabelBinarizer, StandardSca
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from config.config import (
     ENERGY_LABELS,
+    ENERGY_LABELS_SIMPLIFIED,
     FEATURES_DIR,
     MAX_DEPTH,
     MODELS_DIR,
@@ -38,7 +39,7 @@ except ImportError:
 class ModelTrainer:
     """Train and evaluate classification models."""
 
-    def __init__(self, features_file=None):
+    def __init__(self, features_file=None, use_simplified=False):
         self.energy_model = None
         self.vibe_model = None
         self.scaler = None
@@ -46,6 +47,7 @@ class ModelTrainer:
         self.energy_encoder = None  # LabelEncoder for energy labels
         self.feature_names = None
         self.features_file = features_file
+        self.use_simplified = use_simplified
 
     def load_training_data(self):
         """
@@ -108,7 +110,8 @@ class ModelTrainer:
 
         # Encode labels to ensure they're consecutive integers starting from 0
         self.energy_encoder = LabelEncoder()
-        self.energy_encoder.fit(ENERGY_LABELS)  # Fit on all possible labels
+        energy_labels = ENERGY_LABELS_SIMPLIFIED if self.use_simplified else ENERGY_LABELS
+        self.energy_encoder.fit(energy_labels)  # Fit on all possible labels
         y_train_encoded = self.energy_encoder.transform(y_train)
         y_test_encoded = self.energy_encoder.transform(y_test)
 
@@ -370,10 +373,19 @@ def main():
         default=None,
         help="Path to training features JSON file (default: data/features/training_features.json)",
     )
+    parser.add_argument(
+        "--simplified",
+        action="store_true",
+        help="Use simplified taxonomy (default: False)",
+    )
 
     args = parser.parse_args()
 
-    trainer = ModelTrainer(features_file=args.features_file)
+    # Set features file based on simplified flag if not explicitly provided
+    if args.features_file is None and args.simplified:
+        args.features_file = os.path.join(FEATURES_DIR, "training_features_simplified.json")
+
+    trainer = ModelTrainer(features_file=args.features_file, use_simplified=args.simplified)
     trainer.train()
 
 
